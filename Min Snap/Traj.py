@@ -21,13 +21,13 @@ b = matrix_generation(-1.0)
 m[8 * i:8 * i + 4, 8 * i:8 * i + 8] = b[:4, :] 
 
 # intermediary condition of the first curve
-b = matrix_generation(1.0)
-m[8 * i + 4:8 * i + 7 + 4, 8 * i:8 * i + 8] = b[:-1, :]
+#b = matrix_generation(1.0)
+#m[8 * i + 4:8 * i + 7 + 4, 8 * i:8 * i + 8] = b[:-1, :]
 
 # starting condition of the second curve position and derivatives
-b = matrix_generation(-1.0)
-m[8 * i + 4 + 1:8 * i + 4 + 7, 8 * (i + 1):8 * (i + 1) + 8] = -b[1:-1, :]
-m[8 * i + 4 + 7:8 * i + 4 + 8, 8 * (i + 1):8 * (i + 1) + 8] = b[0, :]
+#b = matrix_generation(-1.0)
+#m[8 * i + 4 + 1:8 * i + 4 + 7, 8 * (i + 1):8 * (i + 1) + 8] = -b[1:-1, :]
+#m[8 * i + 4 + 7:8 * i + 4 + 8, 8 * (i + 1):8 * (i + 1) + 8] = b[0, :]
 
 
-print (m)
+print (b[:4, :])
