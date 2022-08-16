@@ -16,18 +16,25 @@ n_segments = 2
 m = np.zeros((8 * n_segments, 8 * n_segments))
 
 i = 0
-# initial condition of the first curve
-b = matrix_generation(-1.0)
-m[8 * i:8 * i + 4, 8 * i:8 * i + 8] = b[:4, :] 
+# initial condition of the first curve (0:4,0:8) 
+b = matrix_generation(0.0)
+#m[8 * i:8 * i + 4, 8 * i:8 * i + 8] = b[:4, :] 
+init = b[:4, :]
+print (init) 
 
-# intermediary condition of the first curve
-#b = matrix_generation(1.0)
+# intermediary condition of the first curve (4:11,0:8)
+b = matrix_generation(1.0)
 #m[8 * i + 4:8 * i + 7 + 4, 8 * i:8 * i + 8] = b[:-1, :]
+middle = b[:-1, :]
+print (middle)
 
 # starting condition of the second curve position and derivatives
-#b = matrix_generation(-1.0)
+b = matrix_generation(-1.0)
 #m[8 * i + 4 + 1:8 * i + 4 + 7, 8 * (i + 1):8 * (i + 1) + 8] = -b[1:-1, :]
 #m[8 * i + 4 + 7:8 * i + 4 + 8, 8 * (i + 1):8 * (i + 1) + 8] = b[0, :]
+end_a = -b[1:-1, :]
+print (end_a)
+end_b = b[0,:]
+print (end_b)
 
-
-print (b[:4, :])
+#print (b[:4, :] )
