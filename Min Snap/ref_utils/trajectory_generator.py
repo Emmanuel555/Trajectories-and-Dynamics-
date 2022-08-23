@@ -205,7 +205,8 @@ def multiple_waypoints(n_segments):
             m[8 * i + 4 + 1:8 * i + 4 + 7, 8 * (i + 1):8 * (i + 1) + 8] = -b[1:-1, :]
             m[8 * i + 4 + 7:8 * i + 4 + 8, 8 * (i + 1):8 * (i + 1) + 8] = b[0, :]
 
-        if i == n_segments - 1:
+        # last seg
+        if i == n_segments - 1: 
             # end condition of the final curve position and derivatives (4 boundary conditions)
             b = matrix_generation(1.0)
             m[8 * i + 4:8 * i + 4 + 4, 8 * i:8 * i + 8] = b[:4, :]
