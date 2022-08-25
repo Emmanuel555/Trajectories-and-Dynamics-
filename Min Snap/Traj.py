@@ -1,6 +1,41 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+# segment parameters
+specified_time_per_segment = 1.0
+control_pts = 5
+n_segments = control_pts - 1
+
+# kinematic constraints up to snap
+order = 4
+
+# 'A' matrix
+a = np.zeros((2 * order * n_segments, 2 * order * n_segments)) # 16 * 16
+#print (a)
+
+# 'B' matrix 
+b = np.zeros((2 * order * n_segments, 1))
+
+# desired outputs of 4 (flat)
+dim = 3
+pos_traj = np.zeros((dim, control_pts))
+pos_traj[0, :] = np.array([0.0, 4.0, 4.0, 3.0, -2.0]) #x
+pos_traj[1, :] = np.array([0.0, 1.0, 2.0, 4.0, 3.0]) #y
+pos_traj[2, :] = np.array([0.0, 3.0, 3.0, 3.0, 3.0]) #z, might not need a min snap for this tbh, will fluctuate the altitude
+yaw_traj = np.zeros((1,control_pts)) #yaw
+y_ref = np.concatenate((pos_traj,yaw_traj))
+no_of_flat_outputs = y_ref.shape[0]
+
+print (y_ref)
+
+# Number of coefficients based on polynomial order
+No_of_Coeff = order * 2
+
+#print (y_ref[0, :])
+#print (flat_outputs,segments)
+poly_coefficients = np.zeros((n_segments, No_of_Coeff, no_of_flat_outputs)) # 1,8,3
+
+print (poly_coefficients.shape)
 
 #reference: https://timodenk.com/blog/cubic-spline-interpolation/
 def matrix_generation(ts):
@@ -16,37 +51,22 @@ def matrix_generation(ts):
 
     return b
 
-# segment parameters
-specified_time_per_segment = 1.0
-n_segments = 1
-m = np.zeros((8 * n_segments, 8 * n_segments))
 
-# kinematic constraints up to snap
-order = 4
+def a_matrix(a,n_segments):
+    m = matrix_generation(specified_time_per_segment)
 
-# desired outputs of 4 (flat)
-n = 3
-pos_traj = np.zeros((n, 3))
-pos_traj[0, :] = np.linspace(0.0, 10.0, n) #x
-pos_traj[1, :] = np.linspace(0.0, 6.0, n) #y
-pos_traj[2, :] = np.linspace(0.0, 3.0, n) #z
-yaw_traj = np.zeros((1,3)) #yaw
-y_ref = np.concatenate((pos_traj,yaw_traj))
-no_of_flat_outputs = y_ref.shape[0]
-segments = y_ref.shape[1] - 1
+    row_count = 1
+    col_count = 0
+    for i in range(n_segments):
+        if row_count % 3 == 0:
+            col_count += 1
+             
+        a[i*order:i+1*order, col_count*8:col_count+1*8] = m[0:4,:]
+        row_count +=1    
 
-print (y_ref)
+    return a
 
-# Number of coefficients based on polynomial order
-No_of_Coeff = order*2
-
-print (segments)
-#print (y_ref[0, :])
-#print (flat_outputs,segments)
-poly_coefficients = np.zeros((segments, No_of_Coeff, no_of_flat_outputs)) # 1,8,3
-
-print (poly_coefficients.shape)
-
+    
 def state_generation(x):
     # x is any dim in y_ref, a tuple
     n = x.shape[0] - 1 # number of segments [0,5,10] eg. = 2 segments 
@@ -77,10 +97,12 @@ def state_generation(x):
 
     #return big_x
 
-print (state_generation(y_ref[0]))
+print (matrix_generation(1)[0:4,:].shape)
+print (a_matrix(a,n_segments))
 
-b = matrix_generation(1.0)
-#print (b)
+
+
+
 
 
 
