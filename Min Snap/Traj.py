@@ -25,8 +25,8 @@ pos_traj[2, :] = np.array([0.0, 3.0, 3.0, 3.0, 3.0]) #z, might not need a min sn
 yaw_traj = np.zeros((1,control_pts)) #yaw
 y_ref = np.concatenate((pos_traj,yaw_traj))
 no_of_flat_outputs = y_ref.shape[0]
-
-print (y_ref)
+velocity = 1
+#print (y_ref)
 
 # Number of coefficients based on polynomial order
 No_of_Coeff = order * 2
@@ -35,7 +35,7 @@ No_of_Coeff = order * 2
 #print (flat_outputs,segments)
 poly_coefficients = np.zeros((n_segments, No_of_Coeff, no_of_flat_outputs)) # 1,8,3
 
-print (poly_coefficients.shape)
+#print (poly_coefficients.shape)
 
 #reference: https://timodenk.com/blog/cubic-spline-interpolation/
 def matrix_generation(ts):
@@ -55,35 +55,44 @@ def matrix_generation(ts):
 def a_matrix(a,n_segments):
     m = matrix_generation(specified_time_per_segment)
 
-    row_count = 1
     col_count = 0
-    for i in range(n_segments):
-        if row_count % 3 == 0:
+    for i in range(n_segments*2):
+        if i % 2 == 0 and i > 0:
             col_count += 1
-             
-        a[i*order:i+1*order, col_count*8:col_count+1*8] = m[0:4,:]
-        row_count +=1    
-
+        #print (a[i*order:i+1*order, col_count*8:col_count+1*8])
+        #print (a[i*order:i+1*order, col_count*8:col_count+1*8].shape)
+        print ("rows: ", i*order, "to", (i+1)*order, "cols: ", col_count*8, "to", (col_count+1)*8)
+        #print (m[0:4,:])
+        #print (m[0:4,:].shape)       
+        a[i*order:(i+1)*order, col_count*8:(col_count+1)*8] = m[0:4,:]
+        
     return a
 
     
-def state_generation(x):
+def state_generation(y_ref,velocity,order): # b matrix
     # x is any dim in y_ref, a tuple
-    n = x.shape[0] - 1 # number of segments [0,5,10] eg. = 2 segments 
+    n = y_ref.shape[1] 
+    state = np.zeros(((n-1)*2*order,1))
 
-    state_x_beginning = np.zeros((8 * 1))
-    state_x_beginning[:8] = np.array([x[0], 0, 0, 0, 0, 0, 0, 0]).T # kinematic requirements at the start
+    velocity 
+ 
+    # Assuming no acc or jerk requirements, both would be set to zero for now  
+    # only testing for 1 dimension thus far....
 
-    state_x_middle = np.zeros((8 * 1))
-    state_x_middle[:8] = np.array([x[1], 0, 0, 0, 0, 0, 0, 0]).T # kinematic requirements in the middle
+    for i in range((n-1)*2):
+        state[i*order:(i+1)*order,:] = np.array([y_ref[0,i],velocity,0,0])
     
-    state_x_end = np.zeros((8 * 1))
-    state_x_end[:8] = np.array([x[2], 0, 0, 0, 0, 0, 0, 0]).T # kinematic requirements at the end
+
+    #state_x_middle = np.zeros((8 * 1))
+    #state_x_middle[:8] = np.array([x[1], 0, 0, 0, 0, 0, 0, 0]).T # kinematic requirements in the middle
+    
+    #state_x_end = np.zeros((8 * 1))
+    #state_x_end[:8] = np.array([x[2], 0, 0, 0, 0, 0, 0, 0]).T # kinematic requirements at the end
 
     
     
     
-    print (state_x_beginning, state_x_middle, state_x_end)
+   
 
     
     
@@ -97,8 +106,9 @@ def state_generation(x):
 
     #return big_x
 
-print (matrix_generation(1)[0:4,:].shape)
-print (a_matrix(a,n_segments))
+#print (matrix_generation(1)[0:4,:].shape)
+final = a_matrix(a,n_segments)
+print (final)
 
 
 
