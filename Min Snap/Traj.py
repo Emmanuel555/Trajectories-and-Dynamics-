@@ -25,7 +25,7 @@ pos_traj[2, :] = np.array([0.0, 3.0, 3.0, 3.0, 3.0]) #z, might not need a min sn
 yaw_traj = np.zeros((1,control_pts)) #yaw
 y_ref = np.concatenate((pos_traj,yaw_traj))
 no_of_flat_outputs = y_ref.shape[0]
-velocity = 1
+velocity = 1.0
 #print (y_ref)
 
 # Number of coefficients based on polynomial order
@@ -52,11 +52,13 @@ def matrix_generation(ts):
     return b
 
 
-def a_matrix(a,n_segments):
-    m = matrix_generation(specified_time_per_segment)
+def a_matrix(a,n_segments,velocity):
+    #time = np.zeros((n_segments * 2,1)) # assuming each segment only takes a second
+    time = np.array([0,1,1,2,2,3,3,4])
 
     col_count = 0
     for i in range(n_segments*2):
+        m = matrix_generation(time[i])
         if i % 2 == 0 and i > 0:
             col_count += 1
         #print (a[i*order:i+1*order, col_count*8:col_count+1*8])
@@ -72,44 +74,40 @@ def a_matrix(a,n_segments):
 def state_generation(y_ref,velocity,order): # b matrix
     # x is any dim in y_ref, a tuple
     n = y_ref.shape[1] 
+    y_ref_extended = np.zeros(((n-1),1,2))
+    for c in range(n-1):
+        y_ref_extended[c,0,0] = y_ref[0,c]
+        y_ref_extended[c,0,1] = y_ref[0,c+1]
+
     state = np.zeros(((n-1)*2*order,1))
 
-    velocity 
- 
     # Assuming no acc or jerk requirements, both would be set to zero for now  
     # only testing for 1 dimension thus far....
 
-    for i in range((n-1)*2):
-        state[i*order:(i+1)*order,:] = np.array([y_ref[0,i],velocity,0,0])
-    
+    for i in range(n-1):
+        if i == 0:
+            init_velocity = 0.0
+            end_velocity = velocity 
+        elif i == (n-2):
+            init_velocity = velocity
+            end_velocity = 0.0
+        else:
+            init_velocity = velocity
+            end_velocity = velocity 
 
-    #state_x_middle = np.zeros((8 * 1))
-    #state_x_middle[:8] = np.array([x[1], 0, 0, 0, 0, 0, 0, 0]).T # kinematic requirements in the middle
+        #print ((state[i*order*2:(i+1)*order*2,:]).shape)
+        desired_states = np.zeros((order*2,1))
+        #print (np.array([[y_ref_extended[i,0,0]], [velocity], [0], [0], [y_ref_extended[i,0,1]], [velocity], [0], [0]]).shape)      
+        state[i*order*2:(i+1)*order*2] = np.array([[y_ref_extended[i,0,0]], [init_velocity], [0], [0], [y_ref_extended[i,0,1]], [end_velocity], [0], [0]])
     
-    #state_x_end = np.zeros((8 * 1))
-    #state_x_end[:8] = np.array([x[2], 0, 0, 0, 0, 0, 0, 0]).T # kinematic requirements at the end
-
-    
-    
-    
-   
-
-    
-    
-    
-    
-    
-    #big_x[-4:] = np.array([x[-1], 0, 0, 0]).T
-
-    #for i in range(1, n):
-    #    big_x[8 * (i - 1) + 4:8 * (i - 1) + 8 + 4] = np.array([x[i], 0, 0, 0, 0, 0, 0, x[i]]).T
-
-    #return big_x
+    return state
 
 #print (matrix_generation(1)[0:4,:].shape)
-final = a_matrix(a,n_segments)
-print (final)
-
+a = a_matrix(a,n_segments,velocity)
+b = state_generation(y_ref,velocity,order)
+print (a[0:8,:])
+print (np.linalg.det(a))
+print (np.linalg.solve(a,b))
 
 
 
