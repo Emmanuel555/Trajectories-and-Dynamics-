@@ -54,7 +54,7 @@ def matrix_generation(ts):
 
 def a_matrix(a,n_segments,velocity):
     #time = np.zeros((n_segments * 2,1)) # assuming each segment only takes a second
-    time = np.array([0,1,1,2,2,3,3,4])
+    time = np.array([0,1,0,1,0,1,0,1])
 
     col_count = 0
     for i in range(n_segments*2):
@@ -63,7 +63,7 @@ def a_matrix(a,n_segments,velocity):
             col_count += 1
         #print (a[i*order:i+1*order, col_count*8:col_count+1*8])
         #print (a[i*order:i+1*order, col_count*8:col_count+1*8].shape)
-        print ("rows: ", i*order, "to", (i+1)*order, "cols: ", col_count*8, "to", (col_count+1)*8)
+        #print ("rows: ", i*order, "to", (i+1)*order, "cols: ", col_count*8, "to", (col_count+1)*8)
         #print (m[0:4,:])
         #print (m[0:4,:].shape)       
         a[i*order:(i+1)*order, col_count*8:(col_count+1)*8] = m[0:4,:]
