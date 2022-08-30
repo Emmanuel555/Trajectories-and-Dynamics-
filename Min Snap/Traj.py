@@ -102,12 +102,41 @@ def state_generation(y_ref,velocity,order): # b matrix
     
     return state
 
-#print (matrix_generation(1)[0:4,:].shape)
-a = a_matrix(a,n_segments,velocity)
-b = state_generation(y_ref,velocity,order)
-print (a[0:8,:])
-print (np.linalg.det(a))
-print (np.linalg.solve(a,b))
+
+def test():
+    a = np.array([[1,0,0,0,0,0],[1,1,1,1,1,1],[0,1,0,0,0,0],[0,1,2,3,4,5],[0,0,2,0,0,0],[0,0,2,6,12,20]])
+    b= np.array([[0],[5],[0],[0],[0],[0]])
+    x = np.linalg.solve(a,b) 
+
+    # ans: x = 50t**3 - 75t**4 + 30t**5
+
+    return x 
+
+
+def polynomial_generation(a,n_segments,velocity,order,y_ref):
+    a = a_matrix(a,n_segments,velocity)
+    b = state_generation(y_ref,velocity,order)
+    #print (a[0:8,:])
+    
+    if a.shape[0] != b.shape[0]:
+        print ("a & b matrices dun share the same dimensions")
+        return None
+
+    if np.linalg.det(a) <= 0:
+        print ("singular matrix detected")
+    else:
+        coeff = np.linalg.solve(a,b) # order = (c0,c1,c2,c3,c4...)
+    
+    no_of_poly = np.zeros((int((coeff.shape[0])/(order*2)),order*2))
+    print (no_of_poly.shape)
+    for i in range(order):
+        no_of_poly[i,:] = coeff.T[:,(i*order*2):(((i+1)*order*2))] 
+
+    return no_of_poly
+
+print (polynomial_generation(a,n_segments,velocity,order,y_ref))
+    
+
 
 
 
