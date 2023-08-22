@@ -41,6 +41,7 @@ classdef AuxiliaryFunctions
         end
 
         function [input] = flap_output(obj, azi, quadrant, gain_disk_pitch, desired_heading)
+            % rmb to put filter to prevent over actuation
             input = zeros(1,2);
             upper_bound = zeros(1,1);
             lower_bound = zeros(1,1);
@@ -171,7 +172,7 @@ classdef AuxiliaryFunctions
                 if activate_cos == 0
                     if (azimuth < upper_bound && azimuth > lower_bound) || (azimuth > -pi + lower_bound && azimuth < -pi + upper_bound) % otherside first
                         tilt_xw = sin(azimuth); % tilt about yw heading in x direction 
-                        pitch = tilt_xw * gain_disk_pitch; % only for cyclic y
+                        pitch = tilt_xw * gain_disk_pitch * -1; % only for cyclic y
                         Motor_Pulse =  (pitch/abs(pitch)) * 1;
                     else
                         pitch = 0;
@@ -180,11 +181,11 @@ classdef AuxiliaryFunctions
                 else
                     if azimuth < upper_bound && azimuth > lower_bound
                         tilt_xw = cos(azimuth); % tilt about yw heading in x direction 
-                        pitch = tilt_xw * gain_disk_pitch; % only for cyclic y
+                        pitch = tilt_xw * gain_disk_pitch * -1; % only for cyclic y
                         Motor_Pulse =  (pitch/abs(pitch)) * 1;
                     elseif azimuth > pi - lower_bound || azimuth < -pi + upper_bound % otherside first
                         tilt_xw = cos(azimuth); % tilt about yw heading in x direction 
-                        pitch = tilt_xw * gain_disk_pitch; % only for cyclic y
+                        pitch = tilt_xw * gain_disk_pitch * -1; % only for cyclic y
                         Motor_Pulse =  (pitch/abs(pitch)) * 1;
                     else
                         pitch = 0;
@@ -199,7 +200,7 @@ classdef AuxiliaryFunctions
                 % no need for lower bound
                 if abs(azimuth) > upper_bound || abs(azimuth) < lower_bound
                     tilt_xw = cos(azimuth); % tilt about yw heading in x direction 
-                    pitch = tilt_xw * gain_disk_pitch;
+                    pitch = tilt_xw * gain_disk_pitch * -1;
                     Motor_Pulse =  (pitch/abs(pitch)) * 1;
                 else
                     pitch = 0;
@@ -230,11 +231,11 @@ classdef AuxiliaryFunctions
                 else
                      if azimuth > lower_bound || azimuth < -pi + upper_bound - pi
                         tilt_xw = cos(azimuth); % tilt about yw heading in x direction 
-                        pitch = tilt_xw * gain_disk_pitch; % only for cyclic y
+                        pitch = tilt_xw * gain_disk_pitch * -1; % only for cyclic y
                         Motor_Pulse =  (pitch/abs(pitch)) * 1;
                      elseif azimuth < upper_bound - pi && azimuth > -pi + lower_bound
                         tilt_xw = cos(azimuth); % tilt about yw heading in x direction 
-                        pitch = tilt_xw * gain_disk_pitch; % only for cyclic y
+                        pitch = tilt_xw * gain_disk_pitch * -1; % only for cyclic y
                         Motor_Pulse =  (pitch/abs(pitch)) * 1;
                      else
                         pitch = 0;
