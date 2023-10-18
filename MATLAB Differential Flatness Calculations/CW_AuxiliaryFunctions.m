@@ -1,4 +1,4 @@
-classdef test_ExpAuxiliaryFunctions
+classdef CW_AuxiliaryFunctions
     methods
 
         function [new_heading]  = new_heading_input(obj,heading)
@@ -417,6 +417,23 @@ classdef test_ExpAuxiliaryFunctions
             mag(13,:) = invert_pos(2,1:sample_per_loop*2)-0.5; % y
             %circle_xy(2,1:1130)
         end
+
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+        
+        %% 
 
         function [mag] = circle_setpoints_anti_cw_halved(obj,speed,x_rad,y_rad,r)    
             %CIRCLE
