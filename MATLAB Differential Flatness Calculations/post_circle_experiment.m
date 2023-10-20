@@ -248,7 +248,7 @@ while ishandle(H)
     %% z (can be used to test, needs to activate hover flaps mode)
 
     z_error = mea_pos(3,1)-derivatives(13,c);
-    %z_error = mea_pos(3,1)-desired_alt;
+    %z_error = mea_pos(3,1)-desired_alt; % this one is with the fixed height
     a_rd_z = mea_vel(3) * Dz;
     a_fb_z = kpos_z*z_error + kd_z*(z_error-z_error_past); % z
     % disp ("alt: ");
@@ -263,6 +263,7 @@ while ishandle(H)
     z_error_past = z_error;
 
     % direction (actual)
+    % desired_heading = atan2((derivatives(12,i)-mea_y_pos),(derivatives(11,i)-mea_x_pos));
     desired_heading = derivatives(6,i);
     true_heading = desired_heading;
     log_head = true_heading;
@@ -334,7 +335,7 @@ while ishandle(H)
 
     desired_heading = exp.new_heading_input(desired_heading);
     quadrant = exp.quadrant_output(desired_heading); 
-    init_input = exp.flap_output(mea_rotation,quadrant,gain,desired_heading,abs(cmd_bodyrate));    
+    init_input = exp.flap_output(mea_rotation,quadrant,gain,desired_heading,-1*abs(cmd_bodyrate));   % -1 for pitching backwards 
     final_flap_input = init_input(:,1) * 15;
     disp("quadrant");
     disp(quadrant);

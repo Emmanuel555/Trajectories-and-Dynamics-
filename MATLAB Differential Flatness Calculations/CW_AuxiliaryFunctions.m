@@ -1,7 +1,7 @@
 classdef CW_AuxiliaryFunctions
     methods
 
-        function [new_heading]  = new_heading_input(obj,heading)
+        function [new_heading] = new_heading_input(obj,heading)
             phase_delay = pi/2 + pi/4;
             new_heading = heading + phase_delay;
 
@@ -414,7 +414,7 @@ classdef CW_AuxiliaryFunctions
             mag(10,1) = sample_per_loop;
             mag(11,:) = invert_pos(1,1:sample_per_loop*2); % x
             mag(12,:) = invert_pos(2,1:sample_per_loop*2); % y
-            mag(13,:) = invert_pos(2,1:sample_per_loop*2)-0.5; % y
+            mag(13,:) = invert_pos(2,1:sample_per_loop*2)-0.5; % z
             %circle_xy(2,1:1130)
         end
 
