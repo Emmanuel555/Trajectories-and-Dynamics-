@@ -30,10 +30,7 @@ for i = 1:numel(rb)
     variable.(my_field).init(convertCharsToStrings(rb(i).Name));
 end
 
-disp('Outputing poses for: ');
-disp(variable)
-
-computerip="192.168.1.139"; % ip of computer to be written to
+computerip="192.168.1.137"; % ip of computer to be written to
 port=1234; % port of the computer to be written to
 %% Break loop if keypress to save to excel
 DlgH = figure;
@@ -76,6 +73,7 @@ mea_rotation = zeros(1,1); % body yaw angle for azimuth, must be in RAD
 mea_xy_pos_mag = zeros(1,1);
 mea_x_pos = zeros(1,1);
 mea_y_pos = zeros(1,1);
+mea_z_pos = zeros(1,1);
 mea_xy_vel_mag = zeros(1,1);
 trigger = 1; % temporary trigger for now to go into offboard mode
 
@@ -191,7 +189,7 @@ while ishandle(H)
     mea_vel = transpose(variable.gp.velocity); % extract velocity measurements in real time from opti track
     mea_rotation = variable.gp.euler(3); 
 
-    if variable.gp.euler(3) == 0  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    if variable.gp.euler(3) < 0.05 && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
         mea_pitch = variable.gp.euler(2);
     end
 
@@ -200,6 +198,7 @@ while ishandle(H)
     % mea_pos(1,:) is positive X (along wall) and mea_pos(2,:) is negative Y (tangent to wall) => _| 
     mea_y_pos = mea_pos(1,:);
     mea_x_pos = -1*mea_pos(2,:);
+    mea_z_pos = mea_pos(3,:);
     mea_xy_vel_mag = sqrt((mea_vel(1,:)).^2 + (mea_vel(2,:)).^2);
     mea_euler = [0,mea_pitch,0]; % default seq is about ZYX
     mea_pitch_rate = variable.gp.euler_rate(2);
@@ -247,13 +246,13 @@ while ishandle(H)
 
     %% z (can be used to test, needs to activate hover flaps mode)
 
-    z_error = mea_pos(3,1)-derivatives(13,c);
-    %z_error = mea_pos(3,1)-desired_alt; % this one is with the fixed height
+    %z_error = mea_pos(3,1)-derivatives(13,c);
+    z_error = mea_pos(3,1)-desired_alt; % this one is with the fixed height
     a_rd_z = mea_vel(3) * Dz;
     a_fb_z = kpos_z*z_error + kd_z*(z_error-z_error_past); % z
     % disp ("alt: ");
     disp ("Pos & Att: X,Y,Z,Pitch ");
-    disp([mea_pos(1,1) mea_pos(2,1) mea_pos(3,1) mea_pitch]);
+    disp([mea_x_pos mea_y_pos mea_z_pos mea_pitch]);
     a_des(3,:) = a_fb_z + g - a_rd_z;
     a_des_z(3,:) = a_fb_z + g - a_rd_z;
 
@@ -263,7 +262,7 @@ while ishandle(H)
     z_error_past = z_error;
 
     % direction (actual)
-    % desired_heading = atan2((derivatives(12,i)-mea_y_pos),(derivatives(11,i)-mea_x_pos));
+    %desired_heading = atan2((derivatives(12,i)-mea_y_pos),(derivatives(11,i)-mea_x_pos));
     desired_heading = derivatives(6,i);
     true_heading = desired_heading;
     log_head = true_heading;
