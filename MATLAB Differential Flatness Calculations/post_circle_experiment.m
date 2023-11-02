@@ -41,6 +41,9 @@ drawnow
 
 
 exp = ExpAuxiliaryFunctions;
+% center for x and y (needa check again on optitrack)
+center_x = 2.5;
+center_y = 1.5;
 % inverted for y and x 
 mid_x = 2.0;
 mid_y = 2.0;
@@ -84,6 +87,7 @@ kpos_z = 10;
 kd_z = 105;
 prp = [1,1]; % bodyrate gain
 ppq = 0.07; % body acc gain
+dpp = 100;
 
 % init a_des
 a_des = zeros(3,1);
@@ -345,7 +349,14 @@ while ishandle(H)
 %     trigger = trigger + 1;
 %     if mod(trigger,16) == 0
 
-    i = i + 50; % 50 is the number to update
+    %% Disk yawing control 
+    
+    r_x = mea_x_pos - center_x;
+    r_y = mea_y_pos - center_y;
+    rad_data = radius - sqrt((r_x).^2 + (r_y).^2);
+
+
+    i = i + 50 + (dpp * ceil(rad_data)); % 50 is the number to update
     c = c + 1;
 %     end
 %     trigger = trigger + update_rate; % temporary holding
