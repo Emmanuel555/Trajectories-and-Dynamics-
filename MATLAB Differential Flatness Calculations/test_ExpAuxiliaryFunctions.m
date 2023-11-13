@@ -185,7 +185,8 @@ classdef test_ExpAuxiliaryFunctions
                 if activate_cos == 0
                     if (azimuth < upper_bound && azimuth > lower_bound) || (azimuth > -pi + lower_bound && azimuth < -pi + upper_bound) % otherside first
                         tilt_xw = sin(azimuth); % tilt about yw heading in x direction 
-                        pitch = tilt_xw * gain_disk_pitch * -1; % only for cyclic y
+                        %pitch = tilt_xw * gain_disk_pitch * -1; % gain disk * -1 always positive
+                        pitch = tilt_xw; % only for cyclic y
                         Motor_Pulse =  (pitch/abs(pitch)) * 1;
                     else
                         pitch = 0;
@@ -194,11 +195,13 @@ classdef test_ExpAuxiliaryFunctions
                 else
                     if azimuth < upper_bound && azimuth > lower_bound
                         tilt_xw = cos(azimuth); % tilt about yw heading in x direction 
-                        pitch = tilt_xw * gain_disk_pitch * -1; % only for cyclic y
+                        %pitch = tilt_xw * gain_disk_pitch * -1; % gain disk * -1 always positive
+                        pitch = tilt_xw; % only for cyclic y
                         Motor_Pulse =  (pitch/abs(pitch)) * 1;
                     elseif azimuth > pi + lower_bound || azimuth < -pi + upper_bound % otherside first
                         tilt_xw = cos(azimuth); % tilt about yw heading in x direction 
-                        pitch = tilt_xw * gain_disk_pitch * -1; % only for cyclic y
+                        %pitch = tilt_xw * gain_disk_pitch * -1; % gain disk * -1 always positive
+                        pitch = tilt_xw; % only for cyclic y
                         Motor_Pulse =  (pitch/abs(pitch)) * 1;
                     else
                         pitch = 0;

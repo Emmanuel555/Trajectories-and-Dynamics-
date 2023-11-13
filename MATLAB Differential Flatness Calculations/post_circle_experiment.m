@@ -77,6 +77,9 @@ mea_xy_pos_mag = zeros(1,1);
 mea_x_pos = zeros(1,1);
 mea_y_pos = zeros(1,1);
 mea_z_pos = zeros(1,1);
+mea_x_pos_past = zeros(1,1);
+mea_y_pos_past = zeros(1,1);
+mea_z_pos_past = zeros(1,1);
 mea_xy_vel_mag = zeros(1,1);
 trigger = 1; % temporary trigger for now to go into offboard mode
 
@@ -87,7 +90,7 @@ kpos_z = 10;
 kd_z = 105;
 prp = [1,1]; % bodyrate gain
 ppq = 0.07; % body acc gain
-dpp = 100;
+dpp = 10;
 
 % init a_des
 a_des = zeros(3,1);
@@ -198,11 +201,18 @@ while ishandle(H)
     end
 
     %position assignment - "rotation matrix"
-    mea_xy_pos_mag = sqrt((mea_pos(1,:)).^2 + (mea_pos(2,:)).^2);
+    
+    %mea_xy_pos_mag = sqrt((mea_pos(1,:)).^2 + (mea_pos(2,:)).^2);
+    
     % mea_pos(1,:) is positive X (along wall) and mea_pos(2,:) is negative Y (tangent to wall) => _| 
     mea_y_pos = mea_pos(1,:);
     mea_x_pos = -1*mea_pos(2,:);
     mea_z_pos = mea_pos(3,:);
+    mea_xy_pos_mag = sqrt((mea_x_pos-mea_x_pos_past).^2 + (mea_y_pos-mea_y_pos_past).^2);
+    mea_x_pos_past = mea_x_pos;
+    mea_y_pos_past = mea_y_pos;
+    mea_z_pos_past = mea_z_pos;
+    
     mea_xy_vel_mag = sqrt((mea_vel(1,:)).^2 + (mea_vel(2,:)).^2);
     mea_euler = [0,mea_pitch,0]; % default seq is about ZYX
     mea_pitch_rate = variable.gp.euler_rate(2);
@@ -244,7 +254,7 @@ while ishandle(H)
     %%%% (Actual)
     %% xy 
     a_fb_xy = abs((kpos*(derivatives(1,i) - mea_xy_pos_mag)) + (kvel*(derivatives(2,i) - mea_xy_vel_mag))); % xy_magnitude plane since yaw can be easily taken care of 
-    gain = kpos*(derivatives(1,i) - mea_xy_pos_mag)/abs(kpos*(derivatives(1,i) - mea_xy_pos_mag));
+    gain = kpos*(derivatives(1,i) - mea_xy_pos_mag)/abs(kpos*(derivatives(1,i) - mea_xy_pos_mag)); % always negative cos derivatives default value simply too small (negligible)
     a_rd = derivatives(2,i) * linear_drag_coeff(1,1);
     a_des(1,:) = a_fb_xy + derivatives(3,i) - a_rd; % fits into the x axis of ades 
 
@@ -327,8 +337,8 @@ while ishandle(H)
     disp("precession signal");
     disp(pc);
 
-    %% precession controller
-    cmd_bodyrate = ppq * (body_rates(:,2) - mea_pitch_rate + body_rate_ref); % gain for cyclic, multiply this to azimuth sin or cos from quadrant, the other value is the desired heading  
+    %% inclusion of diff flatness component
+    cmd_bodyrate = (ppq * (body_rates(:,2) - mea_pitch_rate)) + body_rate_ref; % now bod rate ref is separate from the gain, gain for cyclic, multiply this to azimuth sin or cos from quadrant, the other value is the desired heading  
     log_bod_rates = cmd_bodyrate;
 
 %     bod_rate_cap = 0.117;
@@ -349,11 +359,16 @@ while ishandle(H)
 %     trigger = trigger + 1;
 %     if mod(trigger,16) == 0
 
-    %% Disk yawing control 
-    
+    %% Disk yawing controller 
+
+    % need to run 2 experiments: 
+    % 1 - static rig to see the efx of increasing counter and the turning rate of the disk
+    % 2 - dynamic experiment to see the efx of it in flight and the real time data achieved
+    % 3 - both will be under the efx of the new changes to pos-mag as well as the bod rate ref being separate from the eqn that has gain ppq
+   
     r_x = mea_x_pos - center_x;
     r_y = mea_y_pos - center_y;
-    rad_data = radius - sqrt((r_x).^2 + (r_y).^2);
+    rad_data = sqrt((r_x).^2 + (r_y).^2) - radius;
 
 
     i = i + 50 + (dpp * ceil(rad_data)); % 50 is the number to update
