@@ -5,8 +5,8 @@ clc
 
 %% Variables
 import body_obj.*
-
-rate=1/360; %in 1/Hz, how fast the graph updates
+hz = 100;
+rate=1/hz; %in 1/Hz, how fast the graph updates
 bodyname=["gp"]; % multiple bodies allowed
 %data_arr=["Mtime","Otime","name","x","y","z","qx","qy","qz","qw","euy","eup","eur","eury","eurp","eurr","vx","vy", "vz","pitch_norm"]; % Array to store to excel
 data_arr=["Mtime","Otime","name","x","y","z","euy","eup","eur","vx","vy","vz","bod_rates","thrust","heading"]; % Array to store to excel
@@ -42,14 +42,14 @@ drawnow
 
 exp = ExpAuxiliaryFunctions;
 % center for x and y (needa check again on optitrack)
-center_x = 2.5;
-center_y = 1.5;
+center_x = 2.85-0.5;
+center_y = 1.85;
 % inverted for y and x 
 mid_x = 2.0;
 mid_y = 2.0;
 radius = 0.5;
 speed = 0.3;
-derivatives = exp.circle_setpoints_anti_cw(speed,mid_x,mid_y,radius); % circle anti_cw setpoints, radius 0.5, speed 0.5
+derivatives = exp.circle_setpoints_anti_cw(speed,mid_x,mid_y,radius,hz); % circle anti_cw setpoints, radius 0.5, speed 0.5
 % derivatives = exp.circle_setpoints_cw(1,-2,2,1); % circle cw setpoints
 
 % vel = load("invert_vel.mat");
@@ -89,8 +89,8 @@ kvel = 65.0;
 kpos_z = 10;
 kd_z = 105;
 prp = [1,1]; % bodyrate gain
-ppq = 0.07; % body acc gain
-dpp = 10;
+ppq = 0.2; % body acc gain
+dpp = 30;
 
 % init a_des
 a_des = zeros(3,1);
@@ -166,7 +166,7 @@ while ishandle(H)
                     old_timestamp = rb(k).TimeStamp; 
 %                     disp(rad2deg(variable.("gp").euler));
 %                   data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).quarternion(1) variable.(my_field).quarternion(2) variable.(my_field).quarternion(3) variable.(my_field).quarternion(4) variable.(my_field).euler(1) variable.(my_field).euler(2) variable.(my_field).euler(3) variable.(my_field).euler_rate(1) variable.(my_field).euler_rate(2) variable.(my_field).euler_rate(3) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3)]];
-                    data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) -1*variable.(my_field).position(2) variable.(my_field).position(1) variable.(my_field).position(3) variable.(my_field).euler(3) variable.(my_field).euler(2) variable.(my_field).euler(1) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) log_bod_rates log_thrust log_head]];
+                    data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(3) variable.(my_field).euler(2) variable.(my_field).euler(1) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) log_bod_rates log_thrust log_head]];
                     
                 end
             end
@@ -196,19 +196,18 @@ while ishandle(H)
     mea_vel = transpose(variable.gp.velocity); % extract velocity measurements in real time from opti track
     mea_rotation = variable.gp.euler(3); 
 
-    if variable.gp.euler(3) < 0.05 && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-        mea_pitch = variable.gp.euler(2);
+    if variable.gp.euler(3) < deg2rad(10) && variable.gp.euler(3) > deg2rad(-10) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+        mea_pitch = abs(variable.gp.euler(2));
     end
 
     %position assignment - "rotation matrix"
-    
-    %mea_xy_pos_mag = sqrt((mea_pos(1,:)).^2 + (mea_pos(2,:)).^2);
-    
     % mea_pos(1,:) is positive X (along wall) and mea_pos(2,:) is negative Y (tangent to wall) => _| 
-    mea_y_pos = mea_pos(1,:);
-    mea_x_pos = -1*mea_pos(2,:);
+    mea_y_pos = mea_pos(2,:);
+    mea_x_pos = mea_pos(1,:);
     mea_z_pos = mea_pos(3,:);
-    mea_xy_pos_mag = sqrt((mea_x_pos-mea_x_pos_past).^2 + (mea_y_pos-mea_y_pos_past).^2);
+    mea_xy_pos_mag = sqrt(mea_x_pos.^2 + mea_y_pos.^2); % needa use this for now
+    %mea_xy_pos_mag = sqrt((mea_x_pos-mea_x_pos_past).^2 + (mea_y_pos-mea_y_pos_past).^2);
     mea_x_pos_past = mea_x_pos;
     mea_y_pos_past = mea_y_pos;
     mea_z_pos_past = mea_z_pos;
@@ -333,12 +332,12 @@ while ishandle(H)
 %     end
    
     %% precession controller
-    pc = 0.01 * (omega_mea - precession_rate); 
-    disp("precession signal");
-    disp(pc);
+    %pc = 0.01 * (omega_mea - precession_rate); 
+    %disp("precession signal");
+    %disp(pc);
 
     %% inclusion of diff flatness component
-    cmd_bodyrate = (ppq * (body_rates(:,2) - mea_pitch_rate)) + body_rate_ref; % now bod rate ref is separate from the gain, gain for cyclic, multiply this to azimuth sin or cos from quadrant, the other value is the desired heading  
+    cmd_bodyrate = ppq * (body_rates(:,2) - mea_pitch_rate + body_rate_ref); % reverted (now bod rate ref is separate from the gain) gain for cyclic, multiply this to azimuth sin or cos from quadrant, the other value is the desired heading
     log_bod_rates = cmd_bodyrate;
 
 %     bod_rate_cap = 0.117;
@@ -371,7 +370,12 @@ while ishandle(H)
     rad_data = sqrt((r_x).^2 + (r_y).^2) - radius;
 
 
-    i = i + 50 + (dpp * ceil(rad_data)); % 50 is the number to update
+%     i = i + 50 + (dpp * ceil(rad_data)); % 50 is the number to update
+% 
+%     if i < 5
+%         i = 5;
+%     end
+    i = i + 50; % 50 is the number to update
     c = c + 1;
 %     end
 %     trigger = trigger + update_rate; % temporary holding

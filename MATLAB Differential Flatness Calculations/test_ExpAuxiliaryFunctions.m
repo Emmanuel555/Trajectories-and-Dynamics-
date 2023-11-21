@@ -299,7 +299,7 @@ classdef test_ExpAuxiliaryFunctions
         end
 
 
-        function [mag] = circle_setpoints_anti_cw(obj,speed,x_rad,y_rad,r)    
+        function [mag] = circle_setpoints_anti_cw(obj,speed,x_rad,y_rad,r,hz)    
             %CIRCLE
             x_origin = x_rad;
             y_origin = y_rad;
@@ -321,7 +321,7 @@ classdef test_ExpAuxiliaryFunctions
 %             time_per_setpt = (time_per_eigth * 8) / sample_per_loop; 
 
             time_per_eigth = (pi/4)/omega; % 0.784
-            hz = 360;
+            % hz = 100;
             time_per_setpt = 1/hz;
             sample_per_loop = (time_per_eigth * 8) / time_per_setpt;  % 2258
             sample_per_loop = ceil(sample_per_loop); % only need to change here...
