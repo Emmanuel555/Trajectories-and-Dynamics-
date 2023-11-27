@@ -52,7 +52,7 @@ classdef test_ExpAuxiliaryFunctions
             
         end
 
-        function [input] = flap_output(obj, azi, quadrant, gain_disk_pitch, desired_heading, body_rate_y)
+        function [input] = flap_output(obj, azi, quadrant, desired_heading, body_rate_y)
             % rmb to put filter to prevent over actuation
             input = zeros(1,2);
             upper_bound = zeros(1,1);
@@ -417,7 +417,11 @@ classdef test_ExpAuxiliaryFunctions
             mag(10,1) = sample_per_loop;
             mag(11,:) = invert_pos(1,1:sample_per_loop*2); % x
             mag(12,:) = invert_pos(2,1:sample_per_loop*2); % y
-            mag(13,:) = invert_pos(2,1:sample_per_loop*2)-0.5; % y
+            mag(13,:) = invert_pos(2,1:sample_per_loop*2)-0.5; % z
+            mag(14,:) = invert_vel(1,1:sample_per_loop*2); % x
+            mag(15,:) = invert_vel(2,1:sample_per_loop*2); % y
+            mag(16,:) = invert_acc(1,1:sample_per_loop*2); % x
+            mag(17,:) = invert_acc(2,1:sample_per_loop*2); % y
             %circle_xy(2,1:1130)
         end
 

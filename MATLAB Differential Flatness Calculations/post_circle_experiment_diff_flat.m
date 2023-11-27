@@ -5,8 +5,8 @@ clc
 
 %% Variables
 import body_obj.*
-hz = 100;
-rate=1/hz; %in 1/Hz, how fast the graph updates
+hz = 300; % 100 hz for optitrack
+rate= 1/hz; % in 1/Hz, how fast the graph updates
 bodyname=["gp"]; % multiple bodies allowed
 %data_arr=["Mtime","Otime","name","x","y","z","qx","qy","qz","qw","euy","eup","eur","eury","eurp","eurr","vx","vy", "vz","pitch_norm"]; % Array to store to excel
 data_arr=["Mtime","Otime","name","x","y","z","euy","eup","eur","vx","vy","vz","bod_rates","thrust","heading"]; % Array to store to excel
@@ -48,7 +48,7 @@ center_y = 1.85;
 mid_x = 2.0;
 mid_y = 2.0;
 radius = 0.5;
-speed = 0.3;
+speed = 2.0;
 derivatives = exp.circle_setpoints_anti_cw(speed,mid_x,mid_y,radius,hz); % circle anti_cw setpoints, radius 0.5, speed 0.5
 % derivatives = exp.circle_setpoints_cw(1,-2,2,1); % circle cw setpoints
 
@@ -81,11 +81,12 @@ mea_x_pos_past = zeros(1,1);
 mea_y_pos_past = zeros(1,1);
 mea_z_pos_past = zeros(1,1);
 mea_xy_vel_mag = zeros(1,1);
+mea_xy_acc_mag = zeros(1,1);
 trigger = 1; % temporary trigger for now to go into offboard mode
 
 % gains
-kpos = 55.0;
-kvel = 65.0;
+kpos = 120.0;
+kvel = 68.0;
 kpos_z = 10;
 kd_z = 105;
 prp = [1,1]; % bodyrate gain
@@ -95,6 +96,7 @@ dpp = 30;
 % init a_des
 a_des = zeros(3,1);
 a_des_z = zeros(3,1);
+a_past = zeros(1,1);
 
 % gravity
 g = -9.81;
@@ -135,6 +137,9 @@ log_thrust = 0;
 
 p_array = [];
 t_array = [];
+
+% Motor
+motor_feedback = zeros(1,1);
 
 while ishandle(H)
 %%
@@ -194,6 +199,7 @@ while ishandle(H)
     
     mea_pos = transpose(variable.gp.position); % extract position measurements in real time from opti track 
     mea_vel = transpose(variable.gp.velocity); % extract velocity measurements in real time from opti track
+    mea_acc = transpose(variable.gp.acceleration); % extract acceleration measurements in real time from opti track ( need to do ***)
     mea_rotation = variable.gp.euler(3); 
 
     if variable.gp.euler(3) < deg2rad(10) && variable.gp.euler(3) > deg2rad(-10) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
@@ -206,13 +212,14 @@ while ishandle(H)
     mea_y_pos = mea_pos(2,:);
     mea_x_pos = mea_pos(1,:);
     mea_z_pos = mea_pos(3,:);
-    mea_xy_pos_mag = sqrt(mea_x_pos.^2 + mea_y_pos.^2); % needa use this for now
-    %mea_xy_pos_mag = sqrt((mea_x_pos-mea_x_pos_past).^2 + (mea_y_pos-mea_y_pos_past).^2);
+    %mea_xy_pos_mag = sqrt(mea_x_pos.^2 + mea_y_pos.^2); % needa use this for now
+    mea_xy_pos_mag = sqrt((mea_x_pos-mea_x_pos_past).^2 + (mea_y_pos-mea_y_pos_past).^2);
     mea_x_pos_past = mea_x_pos;
     mea_y_pos_past = mea_y_pos;
     mea_z_pos_past = mea_z_pos;
     
     mea_xy_vel_mag = sqrt((mea_vel(1,:)).^2 + (mea_vel(2,:)).^2);
+    mea_xy_acc_mag = sqrt((mea_acc(1,:)).^2 + (mea_acc(2,:)).^2);
     mea_euler = [0,mea_pitch,0]; % default seq is about ZYX
     mea_pitch_rate = variable.gp.euler_rate(2);
     
@@ -252,10 +259,17 @@ while ishandle(H)
 
     %%%% (Actual)
     %% xy 
-    a_fb_xy = abs((kpos*(derivatives(1,i) - mea_xy_pos_mag)) + (kvel*(derivatives(2,i) - mea_xy_vel_mag))); % xy_magnitude plane since yaw can be easily taken care of 
-    gain = kpos*(derivatives(1,i) - mea_xy_pos_mag)/abs(kpos*(derivatives(1,i) - mea_xy_pos_mag)); % always negative cos derivatives default value simply too small (negligible)
-    a_rd = derivatives(2,i) * linear_drag_coeff(1,1);
-    a_des(1,:) = a_fb_xy + derivatives(3,i) - a_rd; % fits into the x axis of ades 
+    delta_pos = sqrt((derivatives(11,i) - mea_x_pos).^2 + (derivatives(12,i) - mea_y_pos).^2 );
+    delta_vel = sqrt((derivatives(14,i) - (mea_vel(1,:))).^2 + (derivatives(15,i) - (mea_vel(2,:))).^2);
+    a_fb_xy = abs((kpos*delta_pos) + (kvel*(delta_vel)));
+    % a_fb_xy = abs((kpos*(derivatives(1,i) - mea_xy_pos_mag)) + (kvel*(derivatives(2,i) - mea_xy_vel_mag))); % xy_magnitude plane since yaw can be easily taken care of 
+    % gain = kpos*(derivatives(1,i) - mea_xy_pos_mag)/abs(kpos*(derivatives(1,i) - mea_xy_pos_mag)); % always negative cos derivatives default value simply too small (negligible)
+    a_rd = sqrt((derivatives(14,i).^2) + (derivatives(15,i).^2)) * linear_drag_coeff(1,1);
+    % a_rd = derivatives(2,i) * linear_drag_coeff(1,1);
+    a_des(1,:) = a_fb_xy + sqrt((derivatives(16,i).^2) + (derivatives(17,i).^2)) - a_rd; % fits into the x axis of ades 
+
+    %%% (INDI Component for XY)
+    %a_des(1,:) = abs(a_des(1,:) - mea_xy_acc_mag);
 
     %% z (can be used to test, needs to activate hover flaps mode)
 
@@ -304,6 +318,10 @@ while ishandle(H)
     %% Collective thrust (can be used to test)
     % cmd_z = dot(transpose(zd),transpose(a_des)); %% command sent to motor, need to include filter to make sure negative cmds dun go thru
     cmd_z = dot(transpose(zd_z),transpose(a_des_z)); %% command sent to motor, need to include filter to make sure negative cmds dun go thru
+    
+    % (INDI Component for Z)
+    cmd_z = motor_feedback + cmd_z - mea_acc(3,:);
+
     cmd_z = 0.05*cmd_z;
     if cmd_z > 0.7
         cmd_z = 0.7;
@@ -338,6 +356,9 @@ while ishandle(H)
 
     %% inclusion of diff flatness component
     cmd_bodyrate = ppq * (body_rates(:,2) - mea_pitch_rate + body_rate_ref); % reverted (now bod rate ref is separate from the gain) gain for cyclic, multiply this to azimuth sin or cos from quadrant, the other value is the desired heading
+    
+    %(INDI Component for body rates) -- cont tmr...
+
     log_bod_rates = cmd_bodyrate;
 
 %     bod_rate_cap = 0.117;
@@ -347,7 +368,7 @@ while ishandle(H)
 
     desired_heading = exp.new_heading_input(desired_heading);
     quadrant = exp.quadrant_output(desired_heading); 
-    init_input = exp.flap_output(mea_rotation,quadrant,gain,desired_heading,-1*abs(cmd_bodyrate));   % -1 for pitching backwards 
+    init_input = exp.flap_output(mea_rotation,quadrant,desired_heading,-1*abs(cmd_bodyrate));   % -1 for pitching backwards 
     final_flap_input = init_input(:,1) * 15;
     disp("quadrant");
     disp(quadrant);
@@ -375,7 +396,7 @@ while ishandle(H)
 %     if i < 5
 %         i = 5;
 %     end
-    i = i + 50; % 50 is the number to update
+    i = i + 50; % 50 or 30 is the number to update
     c = c + 1;
 %     end
 %     trigger = trigger + update_rate; % temporary holding
