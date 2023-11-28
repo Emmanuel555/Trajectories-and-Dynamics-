@@ -141,6 +141,9 @@ t_array = [];
 % Motor
 motor_feedback = zeros(1,1);
 
+% Flap
+flap_feedback = zeros(1,1);
+
 while ishandle(H)
 %%
     % Get current rigid body information, this has to be recalled every time for new frame index
@@ -269,7 +272,7 @@ while ishandle(H)
     a_des(1,:) = a_fb_xy + sqrt((derivatives(16,i).^2) + (derivatives(17,i).^2)) - a_rd; % fits into the x axis of ades 
 
     %%% (INDI Component for XY)
-    %a_des(1,:) = abs(a_des(1,:) - mea_xy_acc_mag);
+    % a_des(1,:) = abs(a_des(1,:) - mea_xy_acc_mag);
 
     %% z (can be used to test, needs to activate hover flaps mode)
 
@@ -289,7 +292,7 @@ while ishandle(H)
     z_error_past = z_error;
 
     % direction (actual)
-    %desired_heading = atan2((derivatives(12,i)-mea_y_pos),(derivatives(11,i)-mea_x_pos));
+    % desired_heading = atan2((derivatives(12,i)-mea_y_pos),(derivatives(11,i)-mea_x_pos));
     desired_heading = derivatives(6,i);
     true_heading = desired_heading;
     log_head = true_heading;
@@ -357,8 +360,9 @@ while ishandle(H)
     %% inclusion of diff flatness component
     cmd_bodyrate = ppq * (body_rates(:,2) - mea_pitch_rate + body_rate_ref); % reverted (now bod rate ref is separate from the gain) gain for cyclic, multiply this to azimuth sin or cos from quadrant, the other value is the desired heading
     
-    %(INDI Component for body rates) -- cont tmr...
-
+    % (INDI Component for body rates) -- cont tmr...needa include j = moment of inertia
+    % cmd_bodyrate = flap_feedback + cmd_bodyrate;
+    
     log_bod_rates = cmd_bodyrate;
 
 %     bod_rate_cap = 0.117;
