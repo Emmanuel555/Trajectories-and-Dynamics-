@@ -6,7 +6,7 @@ clc
 %% Variables
 import body_obj.*
 hz = 300; % 100 hz for optitrack
-rate= 1/hz; % in 1/Hz, how fast the graph updates
+rate= 1/hz; % in 1/Hz, how fast the graph updates in terms of period (time)
 bodyname=["gp"]; % multiple bodies allowed
 %data_arr=["Mtime","Otime","name","x","y","z","qx","qy","qz","qw","euy","eup","eur","eury","eurp","eurr","vx","vy", "vz","pitch_norm"]; % Array to store to excel
 data_arr=["Mtime","Otime","name","x","y","z","euy","eup","eur","vx","vy","vz","bod_rates","thrust","heading"]; % Array to store to excel
@@ -211,6 +211,7 @@ while ishandle(H)
     if variable.gp.euler(3) < deg2rad(10) && variable.gp.euler(3) > deg2rad(-10) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
     %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
         mea_pitch = abs(variable.gp.euler(2));
+        mea_pitch_rate = variable.gp.euler_rate(2);
     end
 
     %position assignment - "rotation matrix"
@@ -227,7 +228,7 @@ while ishandle(H)
     mea_xy_vel_mag = sqrt((mea_vel(1,:)).^2 + (mea_vel(2,:)).^2);
     mea_xy_acc_mag = sqrt((mea_acc(1,:)).^2 + (mea_acc(2,:)).^2);
     mea_euler = [0,mea_pitch,0]; % default seq is about ZYX
-    mea_pitch_rate = variable.gp.euler_rate(2);
+    % mea_pitch_rate = variable.gp.euler_rate(2);
     
 %%  reset
  

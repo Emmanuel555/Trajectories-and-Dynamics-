@@ -11,6 +11,16 @@ classdef test_ExpAuxiliaryFunctions
 
         end
 
+        function [new_heading]  = sam_new_heading_input(obj,heading)
+            phase_delay = pi/2 + pi/4;
+            new_heading = heading + phase_delay;
+
+            if new_heading > pi
+                new_heading = (new_heading - pi) - pi;
+            end
+
+        end
+
         function [quadrant] = quadrant_output(obj,heading)
     
             quad = zeros(1,1); % unsigned, let the gain settle the sign

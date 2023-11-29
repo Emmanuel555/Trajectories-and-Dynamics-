@@ -6,7 +6,7 @@ clc
 %% Variables
 import body_obj.*
 hz = 300; % 100 hz for optitrack
-rate= 1/hz; % in 1/Hz, how fast the graph updates
+rate= 1/hz; % in 1/Hz, how fast the graph updates in terms of period (time)
 bodyname=["gp"]; % multiple bodies allowed
 %data_arr=["Mtime","Otime","name","x","y","z","qx","qy","qz","qw","euy","eup","eur","eury","eurp","eurr","vx","vy", "vz","pitch_norm"]; % Array to store to excel
 data_arr=["Mtime","Otime","name","x","y","z","euy","eup","eur","vx","vy","vz","bod_rates","thrust","heading"]; % Array to store to excel
@@ -144,6 +144,9 @@ motor_feedback = zeros(1,1);
 % Flap
 flap_feedback = zeros(1,1);
 
+% Moment of inertia (j)
+j = zeros(1,1);
+
 while ishandle(H)
 %%
     % Get current rigid body information, this has to be recalled every time for new frame index
@@ -208,6 +211,7 @@ while ishandle(H)
     if variable.gp.euler(3) < deg2rad(10) && variable.gp.euler(3) > deg2rad(-10) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
     %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
         mea_pitch = abs(variable.gp.euler(2));
+        mea_pitch_rate = variable.gp.euler_rate(2);
     end
 
     %position assignment - "rotation matrix"
@@ -224,7 +228,7 @@ while ishandle(H)
     mea_xy_vel_mag = sqrt((mea_vel(1,:)).^2 + (mea_vel(2,:)).^2);
     mea_xy_acc_mag = sqrt((mea_acc(1,:)).^2 + (mea_acc(2,:)).^2);
     mea_euler = [0,mea_pitch,0]; % default seq is about ZYX
-    mea_pitch_rate = variable.gp.euler_rate(2);
+    % mea_pitch_rate = variable.gp.euler_rate(2);
     
 %%  reset
  
@@ -270,9 +274,6 @@ while ishandle(H)
     a_rd = sqrt((derivatives(14,i).^2) + (derivatives(15,i).^2)) * linear_drag_coeff(1,1);
     % a_rd = derivatives(2,i) * linear_drag_coeff(1,1);
     a_des(1,:) = a_fb_xy + sqrt((derivatives(16,i).^2) + (derivatives(17,i).^2)) - a_rd; % fits into the x axis of ades 
-
-    %%% (INDI Component for XY)
-    % a_des(1,:) = abs(a_des(1,:) - mea_xy_acc_mag);
 
     %% z (can be used to test, needs to activate hover flaps mode)
 
@@ -323,7 +324,7 @@ while ishandle(H)
     cmd_z = dot(transpose(zd_z),transpose(a_des_z)); %% command sent to motor, need to include filter to make sure negative cmds dun go thru
     
     % (INDI Component for Z)
-    cmd_z = motor_feedback + cmd_z - mea_acc(3,:);
+    % cmd_z = motor_feedback + cmd_z - mea_acc(3,:);
 
     cmd_z = 0.05*cmd_z;
     if cmd_z > 0.7
@@ -361,7 +362,7 @@ while ishandle(H)
     cmd_bodyrate = ppq * (body_rates(:,2) - mea_pitch_rate + body_rate_ref); % reverted (now bod rate ref is separate from the gain) gain for cyclic, multiply this to azimuth sin or cos from quadrant, the other value is the desired heading
     
     % (INDI Component for body rates) -- cont tmr...needa include j = moment of inertia
-    % cmd_bodyrate = flap_feedback + cmd_bodyrate;
+    % cmd_bodyrate = flap_feedback + j*cmd_bodyrate;
     
     log_bod_rates = cmd_bodyrate;
 
@@ -370,7 +371,7 @@ while ishandle(H)
 %         cmd_bodyrate = 0.117;
 %     end    
 
-    desired_heading = exp.new_heading_input(desired_heading);
+    desired_heading = exp.sam_new_heading_input(desired_heading);
     quadrant = exp.quadrant_output(desired_heading); 
     init_input = exp.flap_output(mea_rotation,quadrant,desired_heading,-1*abs(cmd_bodyrate));   % -1 for pitching backwards 
     final_flap_input = init_input(:,1) * 15;
