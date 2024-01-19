@@ -91,6 +91,7 @@ kpos_z = 10;
 kd_z = 105;
 prp = [1,1]; % bodyrate gain
 ppq = 0.40; % body acc gain
+ppc = 0.20; % centrifugal gain
 dpp = 30;
 
 % init a_des
@@ -215,7 +216,7 @@ while ishandle(H)
     end
 
     %position assignment - "rotation matrix"
-    % mea_pos(1,:) is positive X (along wall) and mea_pos(2,:) is negative Y (tangent to wall) => _| 
+    % mea_pos(1,:) is tangent to wall (X) and mea_pos(2,:) is along wall (Y) -- updated 
     mea_y_pos = mea_pos(2,:);
     mea_x_pos = mea_pos(1,:);
     mea_z_pos = mea_pos(3,:);
@@ -371,11 +372,16 @@ while ishandle(H)
 %         cmd_bodyrate = 0.117;
 %     end    
     %desired_heading = 0;
-    desired_heading = exp.new_heading_input(desired_heading);
-    
+    desired_heading = exp.new_heading_input(desired_heading);  
     quadrant = exp.quadrant_output(desired_heading); 
-    init_input = exp.flap_output(mea_rotation,quadrant,desired_heading, -1*abs(cmd_bodyrate));   % -1 for pitching backwards      
-    final_flap_input = deg2rad(init_input(:,1) * 25); % tried braking, not very good
+    
+    %% centrifugal force compensation
+    centri_heading = exp.centrifugal_heading_input(desired_heading);
+    centri_quadrant = exp.quadrant_output(centri_heading); 
+
+    centri_input = exp.flap_output(mea_rotation,centri_quadrant,centri_heading,-1*ppc*abs(cmd_bodyrate));      
+    init_input = exp.flap_output(mea_rotation,quadrant,desired_heading,-1*abs(cmd_bodyrate));   % -1 for pitching backwards      
+    final_flap_input = deg2rad((centri_input(:,1) + init_input(:,1)) * 25); % tried braking, not very good
     disp("quadrant");
     disp(quadrant);
     disp("heading");

@@ -11,6 +11,7 @@ classdef test_ExpAuxiliaryFunctions
 
         end
 
+
         function [new_heading]  = sam_new_heading_input(obj,heading)
             phase_delay = pi/2 + pi/4;
             new_heading = heading + phase_delay;
@@ -20,6 +21,31 @@ classdef test_ExpAuxiliaryFunctions
             end
 
         end
+
+        
+        function [new_heading]  = centrifugal_heading_input(obj,heading) % anti-cw cyclic to compensate for centrifugal force
+
+            if heading > 0
+                if heading > pi/2
+                   new_heading = -pi + (pi/2 - (pi - heading));
+                elseif heading == pi
+                   new_heading = -pi/2; 
+                else
+                   new_heading = heading + pi/2;
+                end
+
+            elseif heading < 0
+                if heading < -pi/2
+                   new_heading = heading + pi/2;
+                elseif heading == -pi
+                   new_heading = -pi/2; 
+                else
+                   new_heading = pi/2 + heading;
+                end
+            end
+
+        end
+
 
         function [quadrant] = quadrant_output(obj,heading)
     
@@ -61,6 +87,7 @@ classdef test_ExpAuxiliaryFunctions
             quadrant = quad;
             
         end
+
 
         function [input] = flap_output(obj, azi, quadrant, desired_heading, body_rate_y)
             % rmb to put filter to prevent over actuation
@@ -284,7 +311,8 @@ classdef test_ExpAuxiliaryFunctions
             %     pitch = 0;
             % end
             
-            input(:,1) = pitch * body_rate_y;
+            %input(:,1) = pitch * body_rate_y;
+            input(:,1) = pitch/norm(pitch) * body_rate_y; %% testing 
             input(:,2) = Motor_Pulse;
             
         end
