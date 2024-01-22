@@ -91,7 +91,7 @@ kpos_z = 10;
 kd_z = 105;
 prp = [1,1]; % bodyrate gain
 ppq = 0.40; % body acc gain
-ppc = 0.20; % centrifugal gain
+ppc = 0.20; % centrifugal gain, alternatively, ppc = 1 - ppq
 dpp = 30;
 
 % init a_des

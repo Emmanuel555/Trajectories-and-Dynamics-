@@ -42,6 +42,10 @@ classdef test_ExpAuxiliaryFunctions
                 else
                    new_heading = pi/2 + heading;
                 end
+            
+            elseif heading == 0
+                new_heading = pi/2 + heading;
+                
             end
 
         end
