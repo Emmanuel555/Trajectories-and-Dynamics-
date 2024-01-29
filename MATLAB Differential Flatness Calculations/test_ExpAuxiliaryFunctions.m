@@ -152,7 +152,7 @@ classdef test_ExpAuxiliaryFunctions
             
                 
             elseif quadrant == 1.5 
-                upper_bound = pi + pi/4; 
+                upper_bound = pi/2 + pi/4; 
                 lower_bound = pi/4; 
                 % no need for lower bound
                 if abs(azimuth) > upper_bound || abs(azimuth) < lower_bound
@@ -252,7 +252,7 @@ classdef test_ExpAuxiliaryFunctions
             
             
             elseif quadrant == 3.5
-                upper_bound = pi + pi/4; 
+                upper_bound = pi/2 + pi/4; 
                 lower_bound = pi/4; 
                 % no need for lower bound
                 if abs(azimuth) > upper_bound || abs(azimuth) < lower_bound
@@ -316,7 +316,11 @@ classdef test_ExpAuxiliaryFunctions
             % end
             
             %input(:,1) = pitch * body_rate_y;
-            input(:,1) = pitch/norm(pitch) * body_rate_y; %% testing 
+            if pitch == 0
+                input(:,1) = pitch * body_rate_y;
+            else
+                input(:,1) = pitch/norm(pitch) * body_rate_y; %% testing 
+            end
             input(:,2) = Motor_Pulse;
             
         end
