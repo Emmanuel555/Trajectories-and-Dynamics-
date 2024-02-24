@@ -2,6 +2,9 @@
 % generates a state function and its Jacobian function used by the
 % nonlinear MPC controller in the Monocopter trajectory tracking.
 
+% can compare with LaneFollowingStateFcn(), inputs include disturbance rejection
+
+
 % Create symbolic functions for time-dependent angles
 % rpy
 % phi: roll angle
