@@ -13,16 +13,17 @@
 
 syms phi(t) theta(t) psi(t)
 
-% Transformation matrix for angular velocities from inertial frame
+%% Transformation matrix for angular velocities from inertial frame
 % to body frame
-W = [ 1,  0,        -sin(theta);
-      0,  cos(phi),  cos(theta)*sin(phi);
-      0, -sin(phi),  cos(theta)*cos(phi) ];
+
+% W = [ 1,  0,        -sin(theta);
+%       0,  cos(phi),  cos(theta)*sin(phi);
+%       0, -sin(phi),  cos(theta)*cos(phi) ];
 
 % Rotation matrix R_ZYX from body frame to inertial frame 
-R = rotationMatrixEulerZYX(phi,theta,psi);
+% R = rotationMatrixEulerZYX(phi,theta,psi);
 
-% Create symbolic variables for diagonal elements of inertia matrix
+%% Create symbolic variables for diagonal elements of inertia matrix
 syms Ixx Iyy Izz
 
 % Jacobian that relates body frame to inertial frame velocities
@@ -49,12 +50,15 @@ syms k l m b g u1 u2 u3 u4
 tau_beta = [l*k*(-u2+u4); l*k*(-u1+u3); b*(-u1+u2-u3+u4)];
 
 % Total thrust
-T = k*(u1+u2+u3+u4);
+T = u1;
 
 % Create symbolic functions for time-dependent positions
 syms x(t) y(t) z(t)
 
-% Create state variables consisting of positions, angles,
+% Create symbolic functions for DRAG
+syms Dx Dy Dz
+
+% Create state variables for the disk consisting of positions, angles,
 % and their derivatives
 state = [x; y; z; phi; theta; psi; diff(x,t); diff(y,t); ...
     diff(z,t); diff(phi,t); diff(theta,t); diff(psi,t)];
@@ -63,8 +67,10 @@ state = subsStateVars(state,t);
 f = [ % Set time-derivative of the positions and angles
       state(7:12);
 
-      % Equations for linear accelerations of the center of mass
-      -g*[0;0;1] + R*[0;0;T]/m;
+      % Equations for linear accelerations of the center of mass including
+      % inclusions for linear drag
+      % -g*[0;0;1] + R*[0;0;T]/m;
+      -g*[0;0;1] - [Dx*state(7);Dy*state(8);Dz*state(9)] + [0;0;T]/m;
 
       % Euler–Lagrange equations for angular dynamics
       inv(J)*(tau_beta - C*state(10:12))
