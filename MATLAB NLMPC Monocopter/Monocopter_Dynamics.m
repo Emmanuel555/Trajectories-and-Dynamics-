@@ -5,23 +5,23 @@
 % can compare with LaneFollowingStateFcn(), inputs include disturbance rejection
 
 
-% Create symbolic functions for time-dependent angles
+% Create symbolic functions for time-dependent angles of the body frame wrt world frame
 % rpy
-% phi: roll angle
-% theta: pitch angle
-% psi: yaw angle
+% phi: roll angle = 0; for now we dun count it as per usual  
+% theta: pitch angle  = body roll
+% psi: disk yaw angle = desired heading 
 
 syms phi(t) theta(t) psi(t)
 
 %% Transformation matrix for angular velocities from inertial frame
 % to body frame
 
-% W = [ 1,  0,        -sin(theta);
-%       0,  cos(phi),  cos(theta)*sin(phi);
-%       0, -sin(phi),  cos(theta)*cos(phi) ];
+W = [ 1,  0,        -sin(theta);
+      0,  cos(phi),  cos(theta)*sin(phi);
+      0, -sin(phi),  cos(theta)*cos(phi) ];
 
 % Rotation matrix R_ZYX from body frame to inertial frame 
-% R = rotationMatrixEulerZYX(phi,theta,psi);
+R = rotationMatrixEulerZYX(phi,theta,psi);
 
 %% Create symbolic variables for diagonal elements of inertia matrix
 syms Ixx Iyy Izz
@@ -46,10 +46,10 @@ C = subsStateVars(C,t);
 % ui: squared angular velocity of rotor i as control input
 syms k l m b g u1 u2 u3 u4
 
-% Torques in the direction of phi, theta, psi
-tau_beta = [l*k*(-u2+u4); l*k*(-u1+u3); b*(-u1+u2-u3+u4)];
+% Disk torque in the direction of phi, theta, psi, no 
+tau_disk_rate = [0; u2; b];
 
-% Total thrust
+% Disk/body collective thrust
 T = u1;
 
 % Create symbolic functions for time-dependent positions
@@ -59,7 +59,7 @@ syms x(t) y(t) z(t)
 syms Dx Dy Dz
 
 % Create state variables for the disk consisting of positions, angles,
-% and their derivatives
+% and their derivatives - bod roll = disk pitch
 state = [x; y; z; phi; theta; psi; diff(x,t); diff(y,t); ...
     diff(z,t); diff(phi,t); diff(theta,t); diff(psi,t)];
 state = subsStateVars(state,t);
