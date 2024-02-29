@@ -5,10 +5,10 @@
 % can compare with LaneFollowingStateFcn(), inputs include disturbance rejection
 
 
-% Create symbolic functions for time-dependent angles of the body frame wrt world frame
+% Create symbolic functions for time-dependent angles of wrt world frame
 % rpy
 % phi: roll angle = 0; for now we dun count it as per usual  
-% theta: pitch angle  = body roll
+% theta: pitch angle  = body roll/disk pitch
 % psi: disk yaw angle = desired heading 
 
 syms phi(t) theta(t) psi(t)
@@ -32,9 +32,10 @@ J = W.'*I*W;
 
 % Coriolis matrix
 dJ_dt = diff(J);
-h_dot_J = [diff(phi,t), diff(theta,t), diff(psi,t)]*J;
-grad_temp_h = transpose(jacobian(h_dot_J,[phi theta psi]));
-C = dJ_dt - 1/2*grad_temp_h;
+C = [diff(phi,t), diff(theta,t), diff(psi,t)]*J;
+%h_dot_J = [diff(phi,t), diff(theta,t), diff(psi,t)]*J;
+%grad_temp_h = transpose(jacobian(h_dot_J,[phi theta psi]));
+%C = dJ_dt - 1/2*grad_temp_h;
 C = subsStateVars(C,t);
 
 % Define fixed parameters and control inputs
