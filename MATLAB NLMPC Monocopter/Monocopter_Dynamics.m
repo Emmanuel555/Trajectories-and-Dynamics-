@@ -3,13 +3,13 @@
 % nonlinear MPC controller in the Monocopter trajectory tracking.
 
 % can compare with LaneFollowingStateFcn(), inputs include disturbance rejection
-
+% openExample('mpc/LaneFollowingUsingNMPCExample') *************** Mon
 
 % Create symbolic functions for time-dependent angles of wrt world frame
 % rpy
 % phi: roll angle = 0; for now we dun count it as per usual  
 % theta: pitch angle  = body roll/disk pitch
-% psi: disk yaw angle = desired heading 
+% psi: disk yaw angle = desired disk heading 
 
 syms phi(t) theta(t) psi(t)
 
@@ -28,11 +28,11 @@ syms Ixx Iyy Izz
 
 % Jacobian that relates body frame to inertial frame velocities
 I = [Ixx, 0, 0; 0, Iyy, 0; 0, 0, Izz];
-J = W.'*I*W;
+J = W.'*I*W; % without the inertia frame velocities appended yet
 
 % Coriolis matrix
 dJ_dt = diff(J);
-C = [diff(phi,t), diff(theta,t), diff(psi,t)]*J;
+C = [diff(phi,t), diff(theta,t), diff(psi,t)]*J; % WD.'*I*WD
 %h_dot_J = [diff(phi,t), diff(theta,t), diff(psi,t)]*J;
 %grad_temp_h = transpose(jacobian(h_dot_J,[phi theta psi]));
 %C = dJ_dt - 1/2*grad_temp_h;
@@ -45,10 +45,11 @@ C = subsStateVars(C,t);
 % b: drag constant
 % g: gravity
 % ui: squared angular velocity of rotor i as control input
-syms k l m b g u1 u2 u3 u4
+syms m g u1 u2 u3
 
-% Disk torque in the direction of phi, theta, psi, no 
-tau_disk_rate = [0; u2; b];
+% Disk torque in the direction of phi, theta, psi, still comtemplating
+% about adding the disturbance for phi (u3)
+tau_disk_rate = [u3; u2; 0];
 
 % Disk/body collective thrust
 T = u1;
@@ -62,7 +63,7 @@ syms Dx Dy Dz
 % Create state variables for the disk consisting of positions, angles,
 % and their derivatives - bod roll = disk pitch
 state = [x; y; z; phi; theta; psi; diff(x,t); diff(y,t); ...
-    diff(z,t); diff(phi,t); diff(theta,t); diff(psi,t)];
+    diff(z,t); diff(phi,t); diff(theta,t); diff(psi,t)]; % INPUT STATE in here 
 state = subsStateVars(state,t);
 
 f = [ % Set time-derivative of the positions and angles
@@ -73,8 +74,9 @@ f = [ % Set time-derivative of the positions and angles
       % -g*[0;0;1] + R*[0;0;T]/m;
       -g*[0;0;1] - [Dx*state(7);Dy*state(8);Dz*state(9)] + [0;0;T]/m;
 
-      % Euler–Lagrange equations for angular dynamics
-      inv(J)*(tau_beta - C*state(10:12))
+      % Euler–Lagrange equations for angular dynamics, needa include the
+      % disturbance here 
+      inv(J)*(tau_disk_rate - C*state(10:12))
 ];
 
 f = subsStateVars(f,t);
@@ -83,31 +85,37 @@ f = subsStateVars(f,t);
 IxxVal = 1.2;
 IyyVal = 1.2;
 IzzVal = 2.3;
-kVal = 1;
-lVal = 0.25;
-mVal = 2;
-bVal = 0.2;
-gVal = 9.81;
+mVal = 2; % mass
+gVal = 9.81; % gravity
+DxVal = 0;
+DyVal = 0;
+DzVal = 0;
 
-f = subs(f, [Ixx Iyy Izz k l m b g], ...
-    [IxxVal IyyVal IzzVal kVal lVal mVal bVal gVal]);
+f = subs(f, [Ixx Iyy Izz m g Dx Dy Dz], ...
+    [IxxVal IyyVal IzzVal mVal gVal DxVal DyVal DzVal]);
 f = simplify(f);
 
 % Calculate Jacobians for nonlinear prediction model
 A = jacobian(f,state);
-control = [u1; u2; u3; u4];
+control = [u1; u2; u3];
 B = jacobian(f,control);
 
-% Create QuadrotorStateFcn.m with current state and control
+% Create MonocopterStateFcn.m with current state and control
 % vectors as inputs and the state time-derivative as outputs
-matlabFunction(f,"File","QuadrotorStateFcn", ...
+matlabFunction(f,"File","MonocopterStateFcn", ...
     "Vars",{state,control});
 
-% Create QuadrotorStateJacobianFcn.m with current state and control
+% Create MonocopterStateJacobianFcn.m with current state and control
 % vectors as inputs and the Jacobians of the state time-derivative
 % as outputs
-matlabFunction(A,B,"File","QuadrotorStateJacobianFcn", ...
+matlabFunction(A,B,"File","MonocopterStateJacobianFcn", ...
     "Vars",{state,control});
+
+% Confirm the functions are generated successfully
+while isempty(which('MonocopterStateJacobianFcn'))
+    pause(0.1);
+    disp("ready to be tested...");
+end
 
 
 function [Rz,Ry,Rx] = rotationMatrixEulerZYX(phi,theta,psi)
