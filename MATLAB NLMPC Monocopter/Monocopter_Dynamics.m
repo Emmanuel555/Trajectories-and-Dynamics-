@@ -28,9 +28,10 @@ syms Ixx Iyy Izz
 
 % Jacobian that relates body frame to inertial frame velocities
 I = [Ixx, 0, 0; 0, Iyy, 0; 0, 0, Izz];
-J = W.'*I*W; % without the inertia frame velocities appended yet
+% J = W.'*I*W; % without the inertia frame velocities appended yet
+J = cross(W,I*W);
 
-% Coriolis matrix
+% for euler lagrange component
 dJ_dt = diff(J);
 C = [diff(phi,t), diff(theta,t), diff(psi,t)]*J; % WD.'*I*WD
 %h_dot_J = [diff(phi,t), diff(theta,t), diff(psi,t)]*J;
@@ -48,7 +49,7 @@ C = subsStateVars(C,t);
 syms m g u1 u2 u3
 
 % Disk torque in the direction of phi, theta, psi, still comtemplating
-% about adding the disturbance for phi (u3)
+% about adding the disturbance for phi (u3) - roll, pitch, yaw
 tau_disk_rate = [u3; u2; 0];
 
 % Disk/body collective thrust
@@ -75,8 +76,8 @@ f = [ % Set time-derivative of the positions and angles
       -g*[0;0;1] - [Dx*state(7);Dy*state(8);Dz*state(9)] + [0;0;T]/m;
 
       % Euler–Lagrange equations for angular dynamics, needa include the
-      % disturbance here 
-      inv(J)*(tau_disk_rate - C*state(10:12))
+      % disturbance here...working on this part 
+      inv(J)*(tau_disk_rate - C*state(10:12)) 
 ];
 
 f = subsStateVars(f,t);
