@@ -76,7 +76,7 @@ f = [ % Set time-derivative of the positions and angles
       -g*[0;0;1] - [Dx*state(7);Dy*state(8);Dz*state(9)] + [0;0;T]/m;
 
       % Euler–Lagrange equations for angular dynamics, needa include the
-      % disturbance here...working on this part 
+      % disturbance here...working on this part, tau_disk_rate is the solution
       inv(J)*(tau_disk_rate - C*state(10:12)) 
 ];
 
