@@ -28,25 +28,25 @@ syms Ixx Iyy Izz
 
 % Jacobian that relates body frame to inertial frame velocities
 I = [Ixx, 0, 0; 0, Iyy, 0; 0, 0, Izz];
-% J = W.'*I*W; % without the inertia frame velocities appended yet
-J = cross(W,I*W);
+J = W.'*I*W; % without the inertia frame velocities appended yet; (W transpose) mtimes I mtimes W
+% J = cross(W,I*W); %% value always amount to matrix full of null values
 
 % for euler lagrange component
-dJ_dt = diff(J);
-C = [diff(phi,t), diff(theta,t), diff(psi,t)]*J; % WD.'*I*WD
+%dJ_dt = diff(J);
+%C = [diff(phi,t), diff(theta,t), diff(psi,t)]*J; % WD.'*I*WD
 %h_dot_J = [diff(phi,t), diff(theta,t), diff(psi,t)]*J;
 %grad_temp_h = transpose(jacobian(h_dot_J,[phi theta psi]));
 %C = dJ_dt - 1/2*grad_temp_h;
-C = subsStateVars(C,t);
+%C = subsStateVars(C,t);
 
 % Define fixed parameters and control inputs
-% k: lift constant
-% l: distance between rotor and center of mass
-% m: quadrotor mass
-% b: drag constant
+% Cl: lift coefficient 
+% Cd: drag coefficient 
+% m: monocopter's mass
 % g: gravity
+% r: monocopter length 
 % ui: squared angular velocity of rotor i as control input
-syms m g u1 u2 u3
+syms Cl Cd m g u1 u2 u3
 
 % Disk torque in the direction of phi, theta, psi, still comtemplating
 % about adding the disturbance for phi (u3) - roll, pitch, yaw
@@ -77,7 +77,8 @@ f = [ % Set time-derivative of the positions and angles
 
       % Euler–Lagrange equations for angular dynamics, needa include the
       % disturbance here...working on this part, tau_disk_rate is the solution
-      inv(J)*(tau_disk_rate - C*state(10:12)) 
+      % inv(J)*(tau_disk_rate - C*state(10:12)) 
+      inv(I)*(tau_disk_rate - J*[0;state(11);0;])   % if the direction of precession is positive or negative, negative or positve centrifugal force compensates
 ];
 
 f = subsStateVars(f,t);
