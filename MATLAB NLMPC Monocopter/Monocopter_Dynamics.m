@@ -67,7 +67,7 @@ state = [x; y; z; phi; theta; psi; diff(x,t); diff(y,t); ...
     diff(z,t); diff(phi,t); diff(theta,t); diff(psi,t)]; % INPUT STATE in here 
 state = subsStateVars(state,t);
 
-f = [ % Set time-derivative of the positions and angles
+f = [ % Set time-derivative of the positions and angles, this is wat the bottom 2 eqns equate to, then after which i think they prob use RK4 to integrate *****
       state(7:12);
 
       % Equations for linear accelerations of the center of mass including
