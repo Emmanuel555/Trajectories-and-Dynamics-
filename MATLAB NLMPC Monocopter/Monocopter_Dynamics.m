@@ -42,18 +42,22 @@ J = W.'*I*W; % without the inertia frame velocities appended yet; (W transpose) 
 % Define fixed parameters and control inputs
 % Cl: lift coefficient 
 % Cd: drag coefficient 
+% dl: linear drag term
+% dq: quadratic drag term
 % m: monocopter's mass
 % g: gravity
 % r: monocopter length 
+% rho: air density
+% chord: chord length
 % ui: squared angular velocity of rotor i as control input
-syms Cl Cd m g u1 u2 u3
+syms Cl Cd m g u1 u2 u3 dl dq
 
 % Disk torque in the direction of phi, theta, psi, still comtemplating
 % about adding the disturbance for phi (u3) - roll, pitch, yaw
 tau_disk_rate = [u3; u2; 0];
 
 % Disk/body collective thrust
-T = u1;
+T = (Cl*rho*chord*(u1^2)*r)/6; % input the thrust eqn here
 
 % Create symbolic functions for time-dependent positions
 syms x(t) y(t) z(t)
@@ -64,7 +68,7 @@ syms Dx Dy Dz
 % Create state variables for the disk consisting of positions, angles,
 % and their derivatives - bod roll = disk pitch
 state = [x; y; z; phi; theta; psi; diff(x,t); diff(y,t); ...
-    diff(z,t); diff(phi,t); diff(theta,t); diff(psi,t)]; % INPUT STATE in here 
+    diff(z,t); diff(phi,t); diff(theta,t); diff(psi,t)]; % INPUT STATE in here, [phi,theta,psi] is roll p
 state = subsStateVars(state,t);
 
 f = [ % Set time-derivative of the positions and angles, this is wat the bottom 2 eqns equate to, then after which i think they prob use RK4 to integrate *****
@@ -73,12 +77,12 @@ f = [ % Set time-derivative of the positions and angles, this is wat the bottom 
       % Equations for linear accelerations of the center of mass including
       % inclusions for linear drag
       % -g*[0;0;1] + R*[0;0;T]/m;
-      -g*[0;0;1] - [Dx*state(7);Dy*state(8);Dz*state(9)] + [0;0;T]/m;
+      -g*[0;0;1] - [0;0;] + [0;0;T]/m;
 
       % Euler–Lagrange equations for angular dynamics, needa include the
       % disturbance here...working on this part, tau_disk_rate is the solution
       % inv(J)*(tau_disk_rate - C*state(10:12)) 
-      inv(I)*(tau_disk_rate - J*[0;state(11);0;])   % if the direction of precession is positive or negative, negative or positve centrifugal force compensates
+      inv(I)*(tau_disk_rate - J*[state(10);state(11);0;]) - [dl*state(10) + dq*(state(10)^2);dl*state(11) + dq*(state(11)^2);0;]   % if the direction of precession is positive or negative, negative or positve centrifugal force compensates
 ];
 
 f = subsStateVars(f,t);
