@@ -13,7 +13,7 @@ data_arr=["Mtime","Otime","name","x","y","z","euy","eup","eur","vx","vy","vz","b
 
 %% Create OptiTrack object
 obj = OptiTrack;
-Initialize(obj,'192.168.1.5','multicast'); % IP of the optitrack com, Ensure broadcast frame id is on, loop interface is set to this ip and transmission type is set to multicast
+Initialize(obj,'192.168.1.5','multicast'); % Dun touch ** IP of the optitrack com, Ensure broadcast frame id is on, loop interface is set to this ip and transmission type is set to multicast
 
 up = udpport("IPV4");
 % up = udpport("datagram","OutputDatagramSize",3);
@@ -30,7 +30,7 @@ for i = 1:numel(rb)
     variable.(my_field).init(convertCharsToStrings(rb(i).Name));
 end
 
-computerip="192.168.1.184"; % ip of monocopter to be written to
+computerip="192.168.1.184"; % ip of monocopter to be written to (this can change from time to time) ***
 port=1234; % port of the computer to be written to
 %% Break loop if keypress to save to excel
 DlgH = figure;
@@ -91,7 +91,7 @@ kpos_z = 10;
 kd_z = 105;
 prp = [1,1]; % bodyrate gain
 ppq = 0.40; % body acc gain
-ppc = 0.20; % centrifugal gain, alternatively, ppc = 1 - ppq
+ppc = 0.10; % centrifugal gain, alternatively, ppc = 1 - ppq
 dpp = 30;
 
 % init a_des
@@ -381,7 +381,7 @@ while ishandle(H)
 
     centri_input = exp.flap_output(mea_rotation,centri_quadrant,centri_heading,-1*ppc*abs(cmd_bodyrate));      
     init_input = exp.flap_output(mea_rotation,quadrant,desired_heading,-1*abs(cmd_bodyrate));   % -1 for pitching backwards      
-    final_flap_input = deg2rad((centri_input(:,1) + init_input(:,1)) * 25); % tried braking, not very good
+    final_flap_input = deg2rad((centri_input(:,1) + init_input(:,1)) * 25); % tried braking and heading compensation, not very good
     disp("quadrant");
     disp(quadrant);
     disp("heading");
