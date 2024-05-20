@@ -13,7 +13,8 @@
 
 syms phi(t) theta(t) psi(t)
 
-%% Transformation matrix for angular velocities from inertial frame to body frame
+%% Transformation matrix for angular velocities from inertial frame to body frame 
+%% Do I really need to transform when I am taking body rates from optitrack? Qns to ponder
 
 W = [ 1,  0,        -sin(theta);
       0,  cos(phi),  cos(theta)*sin(phi);
