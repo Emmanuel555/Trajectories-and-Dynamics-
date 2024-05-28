@@ -434,6 +434,7 @@ classdef test_ExpAuxiliaryFunctions
             % used in the later parts
             diff_jer = zeros(2,(sample_per_loop*2));
             diff_sna = zeros(2,(sample_per_loop*2));
+            diff_deg = zeros(1,(sample_per_loop*2));
             
             for v = 1:2
                 for i = 1:(sample_per_loop*2)
@@ -441,8 +442,16 @@ classdef test_ExpAuxiliaryFunctions
                     diff_vel(v,i) = invert_vel(v,i+1) - invert_vel(v,i); 
                     diff_acc(v,i) = invert_acc(v,i+1) - invert_acc(v,i); 
                     diff_jer(v,i) = invert_jer(v,i+1) - invert_jer(v,i); 
-                    diff_sna(v,i) = invert_sna(v,i+1) - invert_sna(v,i); 
+                    diff_sna(v,i) = invert_sna(v,i+1) - invert_sna(v,i);
+                    %diff_deg(v,i) = (direction_deg(v,i+1) - direction_deg(v,i))/time_per_setpt; 
                 end
+            end
+
+            direction = atan2(diff_pos(2,:),diff_pos(1,:));
+            direction_deg = rad2deg(direction);
+
+            for i = 1:(sample_per_loop*2)-1
+                diff_deg(1,i) = (direction_deg(1,i+1) - direction_deg(1,i))/(time_per_setpt);    
             end
             
             %mag = zeros(1,(sample_per_loop*2));
@@ -453,8 +462,7 @@ classdef test_ExpAuxiliaryFunctions
             mag(4,:) = sqrt((diff_jer(1,:)).^2 + (diff_jer(2,:)).^2); %jer
             mag(5,:) = sqrt((diff_sna(1,:)).^2 + (diff_sna(2,:)).^2); %sna
             
-            direction = atan2(diff_pos(2,:),diff_pos(1,:));
-            direction_deg = rad2deg(direction);
+            
 
             mag(6,:) = direction; %direction
             mag(7,1) = time_per_setpt; %update rate
@@ -468,6 +476,7 @@ classdef test_ExpAuxiliaryFunctions
             mag(15,:) = invert_vel(2,1:sample_per_loop*2); % y
             mag(16,:) = invert_acc(1,1:sample_per_loop*2); % x
             mag(17,:) = invert_acc(2,1:sample_per_loop*2); % y
+            mag(18,:) = diff_deg(1,1:sample_per_loop*2); % deg/s
             %circle_xy(2,1:1130)
         end
 
