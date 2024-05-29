@@ -11,6 +11,46 @@ classdef test_ExpAuxiliaryFunctions
 
         end
 
+        % nelder-mead method
+        % error for now just use L2 norm where sqrt(xe^2+ye^2+ze^2) and assume symmetrical body
+        % vector shud be 3x1 = [dx;Ax;Bx], one of y and one for x
+        % n = size(vector);
+        % prob have to port over into the main code but writing here as a
+        % template first
+
+        % generate vector of [d0;A0;B0] for 0
+        % generate vector of [d1;A1;B1] where its just [d0;A0;B0] * (1.0 + 0.05 * 1)
+        % generate vector of [dn;An;Bn] where its just [d0;A0;B0] * (1.0 + 0.05 * n(1))
+        % generate vector of [dr;Ar;Br] where its just [d0;A0;B0] * (1.0 + 0.05 * (n(1) + 1))
+
+        % alpha = 1
+        % lambda = 2
+        % rho = 0.5 
+        % sigma = 0.5
+        
+        % Calibration function:
+        % run for first 30 pts first, 10 for d1, dn, dr - generate rmse vector [e1, en, er] 
+        
+        % states
+        % 1. start with this first, find reflection point new_dr d0 + alpha*(d0 - dr) or expanded pt d0 + lambda*(dr - d0)  
+        % 2. run the new reflection or expansion d, A and B terms for 10 pts
+        % 3. compare against each of the elements inside error vector
+            % 3a. if new_er < en and >= e1: replace dr with new_dr and er with new_er (reflection)
+            % 3b. if new_er < e1: find expanded pt 
+                % 
+        
+
+
+        % function [nm] = nm(obj,rmse,vector)
+        %     d = vector(1,1); %d0
+        %     d1 = 
+        %     A = vector(2,1); %A0
+        %     B = vector(3,1); %B0
+        %     n = size(vector);
+        %     obj_fun = rmse; % rmse obtained first when inputing at x1 NOT x0
+        % 
+        % end
+
 
         function [new_heading]  = sam_new_heading_input(obj,heading)
             phase_delay = pi/2 + pi/4;
