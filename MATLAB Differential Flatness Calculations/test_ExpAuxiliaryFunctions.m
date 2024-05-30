@@ -29,18 +29,31 @@ classdef test_ExpAuxiliaryFunctions
         % sigma = 0.5
         
         % Calibration function:
-        % run for first 30 pts first, 10 for d1, dn, dr - generate rmse vector [e1, en, er] 
+        % 13. run for first 30 pts first, 10 for d1, dn, dr - generate rmse vector [e1, en, er] then go to state 0
         
         % states
-        % 1. start with this first, find reflection point new_dr d0 + alpha*(d0 - dr) or expanded pt d0 + lambda*(dr - d0)  
-        % 2. run the new reflection or expansion d, A and B terms for 10 pts
+        % 0. find reflection point new_dr d0 + alpha*(d0 - dr), push to eqn and go to state 2
+        % 1. find expanded pt d0 + lambda*(dr - d0), push to eqn and go to state 4
+        % 2. run the new reflection new_dr, A and B terms for 10 pts and compute the error new_der and go to state 3
         % 3. compare against each of the elements inside error vector
-            % 3a. if new_er < en and >= e1: replace dr with new_dr and er with new_er (reflection)
-            % 3b. if new_er < e1: find expanded pt 
-                % 
-        
-
-
+            % 3a. if new_der < en and >= e1: replace dr with new_dr and er with new_der (reflection) and go back to state 0
+            % 3b. if new_der < e1: replace dr with new_dr and er with new_der (reflection) and find expanded pt, go to state 1
+            % 3c. if new_der => en: 
+                % 3d. if new_der < er: go to state 6, else go to state 7
+        % 4. run the new expansion new_de, A and B terms for 10 pts and compute the error new_eer and go to state 5
+        % 5. compare against each of the elements inside error vector
+            % 5a. if new_eer < er: replace dr with new_de and er with new_eer (expansion) and go back to state 0
+            % 5b. if new_eer => er: go back to state 0 
+        % 6. find contracted pt d0 + rho*(new_dr - d0), push to eqn and go to state 7
+        % 7. run the contraction new_dc, A and B terms for 10 pts and compute the error new_cer and go to state 8
+        % 8. if new_cer < new_der: replace dr with new_dc and er with new_cer and go to state 0 
+            % 8a. else go to state 12
+        % 9. find contracted pt d0 + rho*(dr - d0), push to eqn and go to state 10
+        % 10. run the contraction new_dc, A and B terms for 10 pts and compute the error new_cer and go to state 11
+        % 11. if new_cer < er: replace dr with new_dc and er with new_cer and go to state 0 
+            % 11a. else go to state 12
+        % 12. dn = d1 + 0.5(dn - d1) and dr = d1 + 0.5(dr - d1) and go to state 13 to recalibrate
+                  
         % function [nm] = nm(obj,rmse,vector)
         %     d = vector(1,1); %d0
         %     d1 = 
