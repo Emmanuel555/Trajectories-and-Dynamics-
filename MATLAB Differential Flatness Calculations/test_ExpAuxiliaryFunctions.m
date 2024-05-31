@@ -487,6 +487,7 @@ classdef test_ExpAuxiliaryFunctions
             % used in the later parts
             diff_jer = zeros(2,(sample_per_loop*2));
             diff_sna = zeros(2,(sample_per_loop*2));
+            diff_rad = zeros(1,(sample_per_loop*2));
             diff_deg = zeros(1,(sample_per_loop*2));
             
             for v = 1:2
@@ -504,6 +505,7 @@ classdef test_ExpAuxiliaryFunctions
             direction_deg = rad2deg(direction);
 
             for i = 1:(sample_per_loop*2)-1
+                diff_rad(1,i) = (direction(1,i+1) - direction(1,i))/(time_per_setpt);
                 diff_deg(1,i) = (direction_deg(1,i+1) - direction_deg(1,i))/(time_per_setpt);    
             end
             
@@ -529,7 +531,8 @@ classdef test_ExpAuxiliaryFunctions
             mag(15,:) = invert_vel(2,1:sample_per_loop*2); % y
             mag(16,:) = invert_acc(1,1:sample_per_loop*2); % x
             mag(17,:) = invert_acc(2,1:sample_per_loop*2); % y
-            mag(18,:) = diff_deg(1,1:sample_per_loop*2); % deg/s
+            mag(18,:) = diff_rad(1,1:sample_per_loop*2); % deg/s
+            mag(19,:) = diff_deg(1,1:sample_per_loop*2); % deg/s
             %circle_xy(2,1:1130)
         end
 

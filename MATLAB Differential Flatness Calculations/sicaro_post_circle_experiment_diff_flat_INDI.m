@@ -64,15 +64,19 @@ derivatives = exp.circle_setpoints_anti_cw(speed,mid_x,mid_y,radius,hz); % circl
 opti_offset = 0.5; % original was 0.5
 ideal_hgt = 1.5;
 desired_alt = ideal_hgt - opti_offset;
+
+% XYZ
 mea_pos = zeros(3,1); % extract position measurements in real time from opti track 
 mea_vel = zeros(3,1); % extract velocity measurements in real time from opti track
 mea_acc = zeros(3,1); % extract acceleration measurements in real time from opti track 
 
-mea_pitch = zeros(1,1); % euler angle for disk pitch which is body roll, anyway this is measured at the centre, so no diff
+% RPY
+mea_angles = zeros(2,1); % euler angles for disk pitch and roll (x,y), which is body roll throughout
 mea_precession_angle = zeros(1,1); % euler angle for disk roll, precession angle
-mea_pitch_rate = zeros(1,1); % euler angle for disk pitch rate which is body roll rate
-
+mea_angular_rate = zeros(2,1); % euler angles for disk pitch rate (x,y), which is body roll rate throughout
 mea_rotation = zeros(1,1); % body yaw angle for azimuth, must be in RAD
+
+
 mea_xy_pos_mag = zeros(1,1);
 mea_x_pos = zeros(1,1);
 mea_y_pos = zeros(1,1);
@@ -119,7 +123,7 @@ error_quat = zeros(1,4);
 % init body rates xy
 body_rates = zeros(1,2);
 
-% need to insert update rate, loop at 1/time_per_setpt freq which is currently 16 hz
+% need to insert update rate, loop at 1/time_per_setpt freq which is currently 300 hz
 update_rate = derivatives(7,1);
 
 sample_per_loop = derivatives(10,1);
@@ -209,9 +213,11 @@ while ishandle(H)
     mea_acc = transpose(variable.gp.acceleration); % extract acceleration measurements in real time from opti track ( need to do ***)
     mea_rotation = variable.gp.euler(3); 
 
+    % left off from here 
+
     if variable.gp.euler(3) < deg2rad(10) && variable.gp.euler(3) > deg2rad(-10) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
     %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-        mea_pitch = abs(variable.gp.euler(2));
+        mea_angles(2,1) = abs(variable.gp.euler(2));
         mea_pitch_rate = variable.gp.euler_rate(2);
     end
 
