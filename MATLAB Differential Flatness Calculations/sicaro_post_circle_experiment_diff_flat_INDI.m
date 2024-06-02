@@ -71,22 +71,21 @@ mea_vel = zeros(3,1); % extract velocity measurements in real time from opti tra
 mea_acc = zeros(3,1); % extract acceleration measurements in real time from opti track 
 
 % RPY
-mea_angles = zeros(2,1); % euler angles for disk pitch and roll (x,y), which is body roll throughout
+mea_angles = zeros(3,1); % euler angles rpy for disk roll and pitch (x,y), which is body roll throughout
 mea_precession_angle = zeros(1,1); % euler angle for disk roll, precession angle
-mea_angular_rate = zeros(2,1); % euler angles for disk pitch rate (x,y), which is body roll rate throughout
+mea_angular_rate = zeros(3,1); % euler angles rpy for disk roll and pitch rate (x,y), which is body roll rate throughout
 mea_rotation = zeros(1,1); % body yaw angle for azimuth, must be in RAD
 
-
-mea_xy_pos_mag = zeros(1,1);
-mea_x_pos = zeros(1,1);
-mea_y_pos = zeros(1,1);
-mea_z_pos = zeros(1,1);
-mea_x_pos_past = zeros(1,1);
-mea_y_pos_past = zeros(1,1);
-mea_z_pos_past = zeros(1,1);
-mea_xy_vel_mag = zeros(1,1);
-mea_xy_acc_mag = zeros(1,1);
+mea_xy_pos_mag = zeros(3,1);
+mea_xyz_pos_past = [mid_x + radius; mid_y; 0];
+mea_xyz_vel_past = zeros(3,1);
+mea_xyz_acc_past = zeros(3,1);
+mea_disk_yaw = derivatives(18,1); 
 trigger = 1; % temporary trigger for now to go into offboard mode
+mea_xyz_pos = zeros(3,1);
+mea_xyz_vel = zeros(3,1);
+mea_xyz_acc = zeros(3,1);
+
 
 % gains
 kpos = 1500.0;
@@ -101,7 +100,7 @@ dpp = 30;
 % init a_des
 a_des = zeros(3,1);
 a_des_z = zeros(3,1);
-a_past = zeros(1,1);
+a_past = zeros(3,1);
 
 % gravity
 g = -9.81;
@@ -127,8 +126,8 @@ body_rates = zeros(1,2);
 update_rate = derivatives(7,1);
 
 sample_per_loop = derivatives(10,1);
-i = (sample_per_loop * 2) - 100; % counter
-c = (sample_per_loop * 2) - 100; % counter
+i = (sample_per_loop * 2) - 0; % counter, used to be -100
+c = (sample_per_loop * 2) - 0; % counter, used to be -100
 old_mag = 0;
 old_precession_rate_angle = 0;
 z_error_past = 0;
@@ -136,21 +135,24 @@ test = 1;
 old_timestamp = 0;
 
 % Logging
-log_bod_rates = 0;
+log_bod_rates = zeros(1,2);
 log_head = 0;
 log_thrust = 0;
 
 p_array = [];
 t_array = [];
 
-% Motor
+% Motor - might be done on wj side (ωdes - wmeas) = Kv ∗ V where kv = motor constant
 motor_feedback = zeros(1,1);
 
-% Flap
+% Flap = (flap_angle) = Kv ∗ V
 flap_feedback = zeros(1,1);
 
-% Moment of inertia (j)
-j = zeros(1,1);
+% Moment of inertia (I) - ixx, iyy, izz
+Ixx = 171;
+Iyy = 171;
+Izz = 171;
+I = [Ixx, 0, 0; 0, Iyy, 0; 0, 0, Izz]; % tentative values 
 
 while ishandle(H)
 %%
@@ -213,28 +215,51 @@ while ishandle(H)
     mea_acc = transpose(variable.gp.acceleration); % extract acceleration measurements in real time from opti track ( need to do ***)
     mea_rotation = variable.gp.euler(3); 
 
-    % left off from here 
-
-    if variable.gp.euler(3) < deg2rad(10) && variable.gp.euler(3) > deg2rad(-10) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    if abs(variable.gp.euler(3)) < deg2rad(45) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
     %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-        mea_angles(2,1) = abs(variable.gp.euler(2));
-        mea_pitch_rate = variable.gp.euler_rate(2);
+        mea_angles(2,1) = variable.gp.euler(2); % disk pitch
+        mea_angular_rate(2,1) = variable.gp.euler_rate(2);
     end
 
-    %position assignment - "rotation matrix"
+    if abs(variable.gp.euler(3)) > deg2rad(45) && abs(variable.gp.euler(3)) < deg2rad(135) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+        mea_angles(1,1) = variable.gp.euler(2); % disk roll
+        mea_angular_rate(1,1) = variable.gp.euler_rate(2);
+    end
+
+    phi = mea_angles(1,1); % roll
+    theta = mea_angles(2,1); % pitch
+
+    W = [ 1,  0,        -sin(theta);
+          0,  cos(phi),  cos(theta)*sin(phi);
+          0, -sin(phi),  cos(theta)*cos(phi) ];
+
+    J = W.'*I*W; % back portion of the INDI
+
+    %position assignment
     % mea_pos(1,:) is tangent to wall (X) and mea_pos(2,:) is along wall (Y) -- updated 
-    mea_y_pos = mea_pos(2,:);
-    mea_x_pos = mea_pos(1,:);
-    mea_z_pos = mea_pos(3,:);
-    %mea_xy_pos_mag = sqrt(mea_x_pos.^2 + mea_y_pos.^2); % needa use this for now
-    mea_xy_pos_mag = sqrt((mea_x_pos-mea_x_pos_past).^2 + (mea_y_pos-mea_y_pos_past).^2);
-    mea_x_pos_past = mea_x_pos;
-    mea_y_pos_past = mea_y_pos;
-    mea_z_pos_past = mea_z_pos;
+    mea_xyz_pos(2,1) = mea_pos(2,:);
+    mea_xyz_pos(1,1) = mea_pos(1,:);
+    mea_xyz_pos(3,1) = mea_pos(3,:);
+    mea_xy_pos_mag = mea_xyz_pos - mea_xyz_pos_past;
+    %disk yaw assignment
+    mea_disk_yaw = atan2(mea_xy_pos_mag(2,:),mea_xy_pos_mag(1,:));
+    mea_xyz_pos_past = mea_xyz_pos;
+
+    %velocity assignment
+    mea_xyz_vel(2,1) = mea_vel(2,:);
+    mea_xyz_vel(1,1) = mea_vel(1,:);
+    mea_xyz_vel(3,1) = mea_vel(3,:);
+
+    %acceleration assignment
+    mea_xyz_acc(2,1) = mea_acc(2,:);
+    mea_xyz_acc(1,1) = mea_acc(1,:);
+    mea_xyz_acc(3,1) = mea_acc(3,:);
+
+    %precession assignment
+    % left off from here 
     
-    mea_xy_vel_mag = sqrt((mea_vel(1,:)).^2 + (mea_vel(2,:)).^2);
-    mea_xy_acc_mag = sqrt((mea_acc(1,:)).^2 + (mea_acc(2,:)).^2);
-    mea_euler = [0,mea_pitch,0]; % default seq is about ZYX
+    mea_euler = [0,mea_angles(2,1),mea_angles(1,1)]; % default seq is about ZYX
     % mea_pitch_rate = variable.gp.euler_rate(2);
     
 %%  reset

@@ -531,7 +531,7 @@ classdef test_ExpAuxiliaryFunctions
             mag(15,:) = invert_vel(2,1:sample_per_loop*2); % y
             mag(16,:) = invert_acc(1,1:sample_per_loop*2); % x
             mag(17,:) = invert_acc(2,1:sample_per_loop*2); % y
-            mag(18,:) = diff_rad(1,1:sample_per_loop*2); % deg/s
+            mag(18,:) = diff_rad(1,1:sample_per_loop*2); % rad/s
             mag(19,:) = diff_deg(1,1:sample_per_loop*2); % deg/s
             %circle_xy(2,1:1130)
         end
