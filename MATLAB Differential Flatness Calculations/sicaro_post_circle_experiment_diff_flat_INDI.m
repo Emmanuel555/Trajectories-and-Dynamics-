@@ -76,11 +76,12 @@ mea_precession_angle = zeros(1,1); % euler angle for disk roll, precession angle
 mea_angular_rate = zeros(3,1); % euler angles rpy for disk roll and pitch rate (x,y), which is body roll rate throughout
 mea_rotation = zeros(1,1); % body yaw angle for azimuth, must be in RAD
 
-mea_xy_pos_mag = zeros(3,1);
+mea_xyz_pos_mag = zeros(3,1);
 mea_xyz_pos_past = [mid_x + radius; mid_y; 0];
 mea_xyz_vel_past = zeros(3,1);
 mea_xyz_acc_past = zeros(3,1);
-mea_disk_yaw = derivatives(18,1); 
+mea_disk_yaw_rate = zeros(1,1);
+mea_disk_yaw_past = derivatives(6,1); 
 trigger = 1; % temporary trigger for now to go into offboard mode
 mea_xyz_pos = zeros(3,1);
 mea_xyz_vel = zeros(3,1);
@@ -241,11 +242,13 @@ while ishandle(H)
     mea_xyz_pos(2,1) = mea_pos(2,:);
     mea_xyz_pos(1,1) = mea_pos(1,:);
     mea_xyz_pos(3,1) = mea_pos(3,:);
-    mea_xy_pos_mag = mea_xyz_pos - mea_xyz_pos_past;
-    %disk yaw assignment
-    mea_disk_yaw = atan2(mea_xy_pos_mag(2,:),mea_xy_pos_mag(1,:));
+    mea_xyz_pos_mag = mea_xyz_pos - mea_xyz_pos_past;
     mea_xyz_pos_past = mea_xyz_pos;
 
+    %disk yaw assignment
+    mea_disk_yaw_rate = ((atan2(mea_xyz_pos_mag(2,:),mea_xyz_pos_mag(1,:))) - mea_disk_yaw_past)/update_rate;
+    mea_disk_yaw_past = atan2(mea_xyz_pos_mag(2,:),mea_xyz_pos_mag(1,:));
+    
     %velocity assignment
     mea_xyz_vel(2,1) = mea_vel(2,:);
     mea_xyz_vel(1,1) = mea_vel(1,:);
