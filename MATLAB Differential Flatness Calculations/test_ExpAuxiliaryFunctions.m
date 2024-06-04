@@ -502,9 +502,11 @@ classdef test_ExpAuxiliaryFunctions
             % used in the later parts
             diff_jer = zeros(2,(sample_per_loop*2));
             diff_sna = zeros(2,(sample_per_loop*2));
-            diff_rad = zeros(1,(sample_per_loop*2));
-            diff_deg = zeros(1,(sample_per_loop*2));
-            
+
+            % disk yawing 
+            diff_rad = zeros(1,(sample_per_loop*2)-1);
+            diff_deg = zeros(1,(sample_per_loop*2)-1);
+ 
             for v = 1:2
                 for i = 1:(sample_per_loop*2)
                     diff_pos(v,i) = invert_pos(v,i+1) - invert_pos(v,i); 
@@ -523,11 +525,8 @@ classdef test_ExpAuxiliaryFunctions
                 diff_rad(1,i) = (direction(1,i+1) - direction(1,i))/(time_per_setpt);
                 diff_deg(1,i) = (direction_deg(1,i+1) - direction_deg(1,i))/(time_per_setpt);    
             end
-
-            %Differential flatness references - left off from here 
-
-            
-            %mag = zeros(1,(sample_per_loop*2));
+           
+            % mag = zeros(1,(sample_per_loop*2));
             
             mag(1,:) = sqrt((diff_pos(1,:)).^2 + (diff_pos(2,:)).^2); %pos
             mag(2,:) = sqrt((diff_vel(1,:)).^2 + (diff_vel(2,:)).^2); %vel
@@ -535,13 +534,12 @@ classdef test_ExpAuxiliaryFunctions
             mag(4,:) = sqrt((diff_jer(1,:)).^2 + (diff_jer(2,:)).^2); %jer
             mag(5,:) = sqrt((diff_sna(1,:)).^2 + (diff_sna(2,:)).^2); %sna
             
-            
-
             mag(6,:) = direction; %direction
             mag(7,1) = time_per_setpt; %update rate
             mag(8,1:9) = x; 
             mag(9,:) = direction_deg; %direction
             mag(10,1) = sample_per_loop;
+            mag(10,2) = (sample_per_loop*2); % number of points ran in this function
             mag(11,:) = invert_pos(1,1:sample_per_loop*2); % x
             mag(12,:) = invert_pos(2,1:sample_per_loop*2); % y
             mag(13,:) = invert_pos(3,1:sample_per_loop*2); % z
@@ -551,10 +549,49 @@ classdef test_ExpAuxiliaryFunctions
             mag(17,:) = invert_acc(1,1:sample_per_loop*2); % x
             mag(18,:) = invert_acc(2,1:sample_per_loop*2); % y
             mag(19,:) = invert_acc(3,1:sample_per_loop*2); % z
-            mag(20,:) = diff_rad(1,1:sample_per_loop*2); % rad/s
-            mag(21,:) = diff_deg(1,1:sample_per_loop*2); % deg/s
+            mag(20,:) = invert_jer(1,1:sample_per_loop*2); % x
+            mag(21,:) = invert_jer(2,1:sample_per_loop*2); % y
+            mag(22,:) = invert_jer(3,1:sample_per_loop*2); % z
+            mag(23,:) = invert_sna(1,1:sample_per_loop*2); % x
+            mag(24,:) = invert_sna(2,1:sample_per_loop*2); % y
+            mag(25,:) = invert_sna(3,1:sample_per_loop*2); % z
+            mag(26,1:(sample_per_loop*2)-1) = diff_rad(1,:); % rad/s
+            mag(27,1:(sample_per_loop*2)-1) = diff_deg(1,:); % deg/s
             %circle_xy(2,1:1130)
         end
+
+
+        function [outputs] = diff_flat(obj,drag_terms,vel,acc,jerk,snap,trajectory)  
+            g = 9.81;
+            if trajectory == "ellipse"
+                c = -1*(acc(1,3) + (vel(1,3)*drag_terms(1,3)) + g);
+                diff_flat_omega_x_disk = (jerk(1,2) + drag_terms(1,2)*acc(1,2))/(-1*c);
+                diff_flat_omega_y_disk = (jerk(1,1) + drag_terms(1,1)*acc(1,1))/(c);
+                collective_thrust_dot = jerk(1,3) + (acc(1,3)*drag_terms(1,3)) - (diff_flat_omega_y_disk*drag_terms(1,1)*vel(1,1)) + (diff_flat_omega_x_disk*drag_terms(1,2)*vel(1,2));
+                diff_flat_omega_x_disk_dot = -1*(snap(1,2) + (2*collective_thrust_dot*diff_flat_omega_x_disk))/(c);
+                diff_flat_omega_y_disk_dot = (snap(1,1) - (2*collective_thrust_dot*diff_flat_omega_y_disk))/(c);
+                omega_precession_x_disk = diff_flat_omega_x_disk_dot/c;
+                omega_precession_y_disk = diff_flat_omega_y_disk_dot/c;
+            else
+                c = -1*(g);
+                diff_flat_omega_x_disk = (jerk(1,2) + drag_terms(1,2)*acc(1,2))/(-1*c);
+                diff_flat_omega_y_disk = (jerk(1,1) + drag_terms(1,1)*acc(1,1))/(c);
+                collective_thrust_dot = -1*(diff_flat_omega_y_disk*drag_terms(1,1)*vel(1,1)) + (diff_flat_omega_x_disk*drag_terms(1,2)*vel(1,2));
+                diff_flat_omega_x_disk_dot = -1*(snap(1,2) + (2*collective_thrust_dot*diff_flat_omega_x_disk))/(c);
+                diff_flat_omega_y_disk_dot = (snap(1,1) - (2*collective_thrust_dot*diff_flat_omega_y_disk))/(c);
+                omega_precession_x_disk = diff_flat_omega_x_disk_dot/c;
+                omega_precession_y_disk = diff_flat_omega_y_disk_dot/c;
+            end
+            
+            outputs(1,1) = diff_flat_omega_x_disk; 
+            outputs(1,2) = diff_flat_omega_y_disk;
+            outputs(1,3) = diff_flat_omega_x_disk_dot;
+            outputs(1,4) = diff_flat_omega_y_disk_dot;
+            outputs(1,5) = omega_precession_x_disk;
+            outputs(1,6) = omega_precession_y_disk;
+            outputs(1,7) = c;
+        end
+
 
         function [mag] = circle_setpoints_anti_cw_halved(obj,speed,x_rad,y_rad,r)    
             %CIRCLE
