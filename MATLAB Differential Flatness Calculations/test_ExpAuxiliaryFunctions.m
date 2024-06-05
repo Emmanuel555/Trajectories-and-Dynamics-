@@ -599,6 +599,40 @@ classdef test_ExpAuxiliaryFunctions
             outputs(1,7) = c;
         end
 
+        function [outputs] = test_attitude(obj,mea_euler,zd)
+            %% Bodyrates (for collective thrust test, this entire section can be disabled)
+            ez = [0,0,1];
+
+            % init error quaternion
+            error_quat = zeros(1,4);
+
+            % init body rates xy
+            body_rates = zeros(1,2);
+
+            prp = [0.5,0.5]; % bodyrate gain
+
+            qz = eul2quat(mea_euler); % default seq is q = [w x y z]
+            disk_vector = quatrotate(qz,ez); % vector of 1 x 3
+            angle = acos((dot(disk_vector,zd)/(norm(disk_vector)*norm(zd)))); % will nvr catch up one
+            n = cross(disk_vector,zd) / norm(cross(disk_vector,zd));
+            B = quatrotate((quatinv(qz)),n);
+
+            % if angle = 0, it would just be an identity quat matrix
+            error_quat = [cos(angle/2),B*sin(angle/2)];
+
+            % can alwways break here to make sure shit is running correctly
+    
+            if error_quat(:,1) < 0
+                body_rates = -2 * prp.* error_quat(:,2:3);
+            else
+                body_rates = 2 * prp.* error_quat(:,2:3);
+            end
+
+            outputs(1,1) = body_rates(1,1);
+            outputs(1,2) = body_rates(1,2);
+            
+        end
+
 
         function [mag] = circle_setpoints_anti_cw_halved(obj,speed,x_rad,y_rad,r)    
             %CIRCLE
