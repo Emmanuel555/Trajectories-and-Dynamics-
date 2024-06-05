@@ -563,8 +563,15 @@ classdef test_ExpAuxiliaryFunctions
 
         function [outputs] = diff_flat(obj,drag_terms,vel,acc,jerk,snap,trajectory)  
             g = 9.81;
+            rho = 1.225;
+            radius = 0.61;
+            cl = 0.25;
+            chord_length = 0.1;
+            mass = 0.16;
+            Fz_wo_mass = -1*(cl*rho*chord_length*(radius^3))/(6*mass);
+            direction = -1; % cw from top 
             if trajectory == "ellipse"
-                c = -1*(acc(1,3) + (vel(1,3)*drag_terms(1,3)) + g);
+                c = direction * sqrt((-1*(acc(1,3) + (vel(1,3)*drag_terms(1,3)) + g))/Fz_wo_mass);
                 diff_flat_omega_x_disk = (jerk(1,2) + drag_terms(1,2)*acc(1,2))/(-1*c);
                 diff_flat_omega_y_disk = (jerk(1,1) + drag_terms(1,1)*acc(1,1))/(c);
                 collective_thrust_dot = jerk(1,3) + (acc(1,3)*drag_terms(1,3)) - (diff_flat_omega_y_disk*drag_terms(1,1)*vel(1,1)) + (diff_flat_omega_x_disk*drag_terms(1,2)*vel(1,2));
@@ -573,7 +580,7 @@ classdef test_ExpAuxiliaryFunctions
                 omega_precession_x_disk = diff_flat_omega_x_disk_dot/c;
                 omega_precession_y_disk = diff_flat_omega_y_disk_dot/c;
             else
-                c = -1*(g);
+                c = direction * sqrt((-1*(g))/(Fz_wo_mass));
                 diff_flat_omega_x_disk = (jerk(1,2) + drag_terms(1,2)*acc(1,2))/(-1*c);
                 diff_flat_omega_y_disk = (jerk(1,1) + drag_terms(1,1)*acc(1,1))/(c);
                 collective_thrust_dot = -1*(diff_flat_omega_y_disk*drag_terms(1,1)*vel(1,1)) + (diff_flat_omega_x_disk*drag_terms(1,2)*vel(1,2));
