@@ -126,10 +126,14 @@ body_rates = zeros(1,2);
 % need to insert update rate, loop at 1/time_per_setpt freq which is currently 300 hz
 update_rate = derivatives(7,1);
 
+% points per loop
 sample_per_loop = derivatives(10,1);
 i = (sample_per_loop * 2) - 0; % counter, used to be -100
 c = (sample_per_loop * 2) - 0; % counter, used to be -100
-z_error_past = 0;
+
+% error matrices
+error = zeros(3,1);
+error_past = zeros(3,1);
 test = 1;
 old_timestamp = 0;
 
@@ -289,50 +293,49 @@ while ishandle(H)
 
 
     %%%% (Actual)
-    %% xy 
+    %% xyz 
     % delta_pos = sqrt((derivatives(11,i) - mea_x_pos).^2 + (derivatives(12,i) - mea_y_pos).^2 );
     % delta_vel = sqrt((derivatives(14,i) - (mea_vel(1,:))).^2 + (derivatives(15,i) - (mea_vel(2,:))).^2);
     % a_fb_xy = abs((kpos*delta_pos) + (kvel*(delta_vel)));
 
+    error = [derivatives(11,i) - mea_xyz_pos(1,1);derivatives(12,i) - mea_xyz_pos(2,1);mea_xyz_pos(3,1)-desired_alt]; 
     a_rd = [mea_xyz_vel(1,1)*linear_drag_coeff(1,1);mea_xyz_vel(2,1)*linear_drag_coeff(1,2);mea_xyz_vel(3,1)*linear_drag_coeff(1,3)]; 
-    a_des(1,:) = (kpos(1,1)*(derivatives(11,i)) - mea_xyz_pos(1,1)) + (kdpos(1,1)*(mea_xyz_pos(1,1) - mea_xyz_pos_past(1,1))) + (kvel(1,1)*(derivatives(14,i) - mea_xyz_vel(1,1))) + derivatives(17,i) - a_rd(1,1); % x
-    a_des(2,:) = (kpos(2,1)*(derivatives(12,i) - mea_xyz_pos(2,1))) + (kdpos(2,1)*(mea_xyz_pos(2,1) - mea_xyz_pos_past(2,1))) + (kvel(2,1)*(derivatives(15,i) - mea_xyz_vel(2,1))) + derivatives(18,i) - a_rd(2,1); % y
-    
+    a_des(1,:) = (kpos(1,1)*error(1,1)) + (kdpos(1,1)*(error(1,1) - error_past(1,1))) + (kvel(1,1)*(derivatives(14,i) - mea_xyz_vel(1,1))) + derivatives(17,i) - a_rd(1,1); % x
+    a_des(2,:) = (kpos(2,1)*error(2,1)) + (kdpos(2,1)*(error(2,1) - error_past(2,1))) + (kvel(2,1)*(derivatives(15,i) - mea_xyz_vel(2,1))) + derivatives(18,i) - a_rd(2,1); % y
+    a_des(3,:) = (kpos(3,1)*error(3,1)) + (kdpos(3,1)*(error(3,1) - error_past(3,1))) + g - a_rd(3,1); % z, ellipse needa add the derivatives for z
+    %% z (can be used to test, needs to activate hover flaps mode)
+    a_des_z(3,:) = a_des(3,:); 
+    error_past = error; 
+    mea_xyz_pos_past = mea_xyz_pos;
+
+    %% old code
     % a_fb_xy = abs((kpos*(derivatives(1,i) - mea_xy_pos_mag)) + (kvel*(derivatives(2,i) - mea_xy_vel_mag))); % xy_magnitude plane since yaw can be easily taken care of 
     % gain = kpos*(derivatives(1,i) - mea_xy_pos_mag)/abs(kpos*(derivatives(1,i) - mea_xy_pos_mag)); % always negative cos derivatives default value simply too small (negligible)
     % a_rd = sqrt((derivatives(14,i).^2) + (derivatives(15,i).^2)) * linear_drag_coeff(1,1);
     % a_rd = derivatives(2,i) * linear_drag_coeff(1,1);
     % a_des(1,:) = a_fb_xy + sqrt((derivatives(16,i).^2) + (derivatives(17,i).^2)) - a_rd; % fits into the x axis of ades 
 
-    %% z (can be used to test, needs to activate hover flaps mode)
-
     % z_error = mea_pos(3,1)-derivatives(13,c);
-    % left off here, create error vector to hold all 3 terms 
-    z_error = mea_xyz_pos(3,1)-desired_alt; % this one is with the fixed height
-    a_rd_z = mea_vel(3) * Dz;
-    a_fb_z = kpos_z*z_error + kd_z*(z_error-z_error_past); % z
+    % z_error = mea_xyz_pos(3,1)-desired_alt; % this one is with the fixed height
+    % a_rd_z = mea_vel(3) * Dz;
+    % a_fb_z = kpos_z*z_error + kd_z*(z_error-z_error_past); % z
     % disp ("alt: ");
-
-    a_des(3,:) = (kpos(3,1)*(mea_xyz_pos(3,1)-desired_alt)) + (kdpos(2,1)*(mea_xyz_pos(2,1) - mea_xyz_pos_past(2,1))) + (kvel(2,1)*(derivatives(15,i) - mea_xyz_vel(2,1))) + derivatives(18,i) - a_rd(2,1); % y
-
-    disp ("Pos & Att: X,Y,Z,Pitch ");
-    disp([mea_x_pos mea_y_pos mea_z_pos mea_pitch]);
-    a_des(3,:) = a_fb_z + g - a_rd_z;
-    a_des_z(3,:) = a_fb_z + g - a_rd_z;
-
-
-    zd = a_des / norm(a_des); % consists of all 3 axis, this was segregated due to collective and cyclic thrust decoupling  
-    zd_z = a_des_z / norm(a_des_z); % 3 x 1 = z_desired, if empty it would be 0 0 1 
-    z_error_past = z_error;
-
+    % disp ("Pos & Att: X,Y,Z,Pitch ");
+    % disp([mea_x_pos mea_y_pos mea_z_pos mea_pitch]);
+    % a_des(3,:) = a_fb_z + g - a_rd_z;
+    % a_des_z(3,:) = a_fb_z + g - a_rd_z;
+ 
     % direction (actual)
     % desired_heading = atan2((derivatives(12,i)-mea_y_pos),(derivatives(11,i)-mea_x_pos));
-    desired_heading = derivatives(6,i);
-    true_heading = desired_heading;
-    log_head = true_heading;
-    mea_xyz_pos_past = mea_xyz_pos;
+    % desired_heading = derivatives(6,i);
+    % true_heading = desired_heading;
+    % log_head = true_heading;
+
+    %% Attitude controller
+    zd = a_des / norm(a_des); % consists of all 3 axis, this was segregated due to collective and cyclic thrust decoupling  
+    zd_z = a_des_z / norm(a_des_z); % 3 x 1 = z_desired, if empty it would be 0 0 1 
     
-    %% Bodyrates (for collective thrust test, this entire section can be disabled)
+    % Bodyrates (for collective thrust test, this entire section can be disabled)
     qz = eul2quat(mea_euler); % default seq is q = [w x y z]
     disk_vector = quatrotate(qz,ez); % vector of 1 x 3
     angle = acos((dot(disk_vector,transpose(zd))/(norm(disk_vector)*norm(zd)))); % will nvr catch up one
@@ -342,7 +345,7 @@ while ishandle(H)
     % if angle = 0, it would just be an identity quat matrix
     error_quat = [cos(angle/2),B*sin(angle/2)];
 
-    % can alwways break here to make sure shit is running correctly
+    % can always break here to make sure shit is running correctly
     
     if error_quat(:,1) < 0
         body_rates = -2 * prp.* error_quat(:,2:3);
@@ -365,9 +368,10 @@ while ishandle(H)
         cmd_z = 0.7;
     end
     log_thrust = cmd_z;
-    disp("cmd_z: ");
+    disp("cmd_z: "); % use fprint 
     disp(cmd_z);  
 
+    % left off here, attitude controller ends here...
     %% Diff Flat Feedforward component (actual)
     ff_n = (derivatives(4,i) + linear_drag_coeff(:,1)*derivatives(3,i));
     v = [derivatives(4,i),0,0];
