@@ -72,7 +72,7 @@ mea_acc = zeros(3,1); % extract acceleration measurements in real time from opti
 
 % RPY
 mea_angles = zeros(3,1); % euler angles rpy for disk roll and pitch (x,y), which is body roll throughout
-mea_precession_angle = zeros(1,1); % euler angle for disk roll, precession angle
+mea_precession_angle = zeros(2,1); % euler angle for disk roll, precession angle
 mea_angular_rate = zeros(3,1); % euler angles rpy for disk roll and pitch rate (x,y), which is body roll rate throughout
 mea_rotation = zeros(1,1); % body yaw angle for azimuth, must be in RAD
 
@@ -87,12 +87,12 @@ mea_xyz_pos = zeros(3,1);
 mea_xyz_vel = zeros(3,1);
 mea_xyz_acc = zeros(3,1);
 
-
 % gains
-kpos = 1500.0;
-kvel = 1300.0;
-kpos_z = 10;
-kd_z = 105;
+kpos = [1500.0;1500.0;10];
+kvel = [1300.0;1300.0;10];
+kdpos = [1300.0;1300.0;105];
+%kpos_z = 10;
+%kd_z = 105;
 prp = [1,1]; % bodyrate gain
 ppq = 0.40; % body acc gain
 ppc = 0.10; % centrifugal gain, alternatively, ppc = 1 - ppq
@@ -129,8 +129,6 @@ update_rate = derivatives(7,1);
 sample_per_loop = derivatives(10,1);
 i = (sample_per_loop * 2) - 0; % counter, used to be -100
 c = (sample_per_loop * 2) - 0; % counter, used to be -100
-old_mag = 0;
-old_precession_rate_angle = 0;
 z_error_past = 0;
 test = 1;
 old_timestamp = 0;
@@ -215,17 +213,21 @@ while ishandle(H)
     mea_vel = transpose(variable.gp.velocity); % extract velocity measurements in real time from opti track
     mea_acc = transpose(variable.gp.acceleration); % extract acceleration measurements in real time from opti track ( need to do ***)
     mea_rotation = variable.gp.euler(3); 
+    mea_angular_rate(3,1) = variable.gp.euler_rate(3); % (3,1) option is given to body rotation rate
 
-    if abs(variable.gp.euler(3)) < deg2rad(45) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    % need to test w opti track coordinate system to see if it can output this results 
+    if abs(variable.gp.euler(3)) < deg2rad(45) || abs(variable.gp.euler(3)) > deg2rad(135) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
     %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
         mea_angles(2,1) = variable.gp.euler(2); % disk pitch
-        mea_angular_rate(2,1) = variable.gp.euler_rate(2);
+        mea_angular_rate(2,1) = variable.gp.euler_rate(2); % disk pitch rate, body roll
+        mea_precession_angle(1,1) = variable.gp.euler_rate_rate(2)/mea_angular_rate(3,1); % needa check if euler rate(3) is negative for our craft, lets hope it is since its spins cw, anti-cw is positive
     end
 
     if abs(variable.gp.euler(3)) > deg2rad(45) && abs(variable.gp.euler(3)) < deg2rad(135) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
     %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
         mea_angles(1,1) = variable.gp.euler(2); % disk roll
-        mea_angular_rate(1,1) = variable.gp.euler_rate(2);
+        mea_angular_rate(1,1) = variable.gp.euler_rate(2); % disk roll rate, body roll
+        mea_precession_angle(2,1) = variable.gp.euler_rate_rate(2)/mea_angular_rate(3,1);
     end
 
     phi = mea_angles(1,1); % roll
@@ -243,7 +245,7 @@ while ishandle(H)
     mea_xyz_pos(1,1) = mea_pos(1,:);
     mea_xyz_pos(3,1) = mea_pos(3,:);
     mea_xyz_pos_mag = mea_xyz_pos - mea_xyz_pos_past;
-    mea_xyz_pos_past = mea_xyz_pos;
+    
 
     %disk yaw assignment
     mea_disk_yaw_rate = ((atan2(mea_xyz_pos_mag(2,:),mea_xyz_pos_mag(1,:))) - mea_disk_yaw_past)/update_rate;
@@ -258,12 +260,9 @@ while ishandle(H)
     mea_xyz_acc(2,1) = mea_acc(2,:);
     mea_xyz_acc(1,1) = mea_acc(1,:);
     mea_xyz_acc(3,1) = mea_acc(3,:);
-
-    %precession assignment
-    % left off from here 
     
+    %euler angles of the disk 
     mea_euler = [0,mea_angles(2,1),mea_angles(1,1)]; % default seq is about ZYX
-    % mea_pitch_rate = variable.gp.euler_rate(2);
     
 %%  reset
  
@@ -271,17 +270,7 @@ while ishandle(H)
         i = 1;
         c = 1;
     end 
-    
-    %%%% (Precession Rate Tracking)
-    omega_mea = mea_xy_vel_mag / radius; % omega tracking of the body  
-    latest_mag = mea_xy_pos_mag - sqrt(mid_x^2 + mid_y^2);
-    latest_precession_rate_angle = acos(latest_mag/old_mag);
-
-    precession_rate = -1 * ((latest_mag-old_mag)/abs((latest_mag-old_mag))) * (latest_precession_rate_angle/update_rate); % if negative in opti-track means correct direction, I multiply by -1 to make it positive so its in the correct direction
-
-    old_mag = latest_mag;
-    old_precession_rate_angle = latest_precession_rate_angle;
-    
+   
     %%%% (Test)
     % xy
 %     a_fb_xy = abs((kpos*(derivatives(1,test) - mea_xy_pos_mag)) + (kvel*(derivatives(2,test) - mea_xy_vel_mag))); % xy_magnitude plane since yaw can be easily taken care of 
@@ -301,22 +290,31 @@ while ishandle(H)
 
     %%%% (Actual)
     %% xy 
-    delta_pos = sqrt((derivatives(11,i) - mea_x_pos).^2 + (derivatives(12,i) - mea_y_pos).^2 );
-    delta_vel = sqrt((derivatives(14,i) - (mea_vel(1,:))).^2 + (derivatives(15,i) - (mea_vel(2,:))).^2);
-    a_fb_xy = abs((kpos*delta_pos) + (kvel*(delta_vel)));
+    % delta_pos = sqrt((derivatives(11,i) - mea_x_pos).^2 + (derivatives(12,i) - mea_y_pos).^2 );
+    % delta_vel = sqrt((derivatives(14,i) - (mea_vel(1,:))).^2 + (derivatives(15,i) - (mea_vel(2,:))).^2);
+    % a_fb_xy = abs((kpos*delta_pos) + (kvel*(delta_vel)));
+
+    a_rd = [mea_xyz_vel(1,1)*linear_drag_coeff(1,1);mea_xyz_vel(2,1)*linear_drag_coeff(1,2);mea_xyz_vel(3,1)*linear_drag_coeff(1,3)]; 
+    a_des(1,:) = (kpos(1,1)*(derivatives(11,i)) - mea_xyz_pos(1,1)) + (kdpos(1,1)*(mea_xyz_pos(1,1) - mea_xyz_pos_past(1,1))) + (kvel(1,1)*(derivatives(14,i) - mea_xyz_vel(1,1))) + derivatives(17,i) - a_rd(1,1); % x
+    a_des(2,:) = (kpos(2,1)*(derivatives(12,i) - mea_xyz_pos(2,1))) + (kdpos(2,1)*(mea_xyz_pos(2,1) - mea_xyz_pos_past(2,1))) + (kvel(2,1)*(derivatives(15,i) - mea_xyz_vel(2,1))) + derivatives(18,i) - a_rd(2,1); % y
+    
     % a_fb_xy = abs((kpos*(derivatives(1,i) - mea_xy_pos_mag)) + (kvel*(derivatives(2,i) - mea_xy_vel_mag))); % xy_magnitude plane since yaw can be easily taken care of 
     % gain = kpos*(derivatives(1,i) - mea_xy_pos_mag)/abs(kpos*(derivatives(1,i) - mea_xy_pos_mag)); % always negative cos derivatives default value simply too small (negligible)
-    a_rd = sqrt((derivatives(14,i).^2) + (derivatives(15,i).^2)) * linear_drag_coeff(1,1);
+    % a_rd = sqrt((derivatives(14,i).^2) + (derivatives(15,i).^2)) * linear_drag_coeff(1,1);
     % a_rd = derivatives(2,i) * linear_drag_coeff(1,1);
-    a_des(1,:) = a_fb_xy + sqrt((derivatives(16,i).^2) + (derivatives(17,i).^2)) - a_rd; % fits into the x axis of ades 
+    % a_des(1,:) = a_fb_xy + sqrt((derivatives(16,i).^2) + (derivatives(17,i).^2)) - a_rd; % fits into the x axis of ades 
 
     %% z (can be used to test, needs to activate hover flaps mode)
 
-    %z_error = mea_pos(3,1)-derivatives(13,c);
-    z_error = mea_pos(3,1)-desired_alt; % this one is with the fixed height
+    % z_error = mea_pos(3,1)-derivatives(13,c);
+    % left off here, create error vector to hold all 3 terms 
+    z_error = mea_xyz_pos(3,1)-desired_alt; % this one is with the fixed height
     a_rd_z = mea_vel(3) * Dz;
     a_fb_z = kpos_z*z_error + kd_z*(z_error-z_error_past); % z
     % disp ("alt: ");
+
+    a_des(3,:) = (kpos(3,1)*(mea_xyz_pos(3,1)-desired_alt)) + (kdpos(2,1)*(mea_xyz_pos(2,1) - mea_xyz_pos_past(2,1))) + (kvel(2,1)*(derivatives(15,i) - mea_xyz_vel(2,1))) + derivatives(18,i) - a_rd(2,1); % y
+
     disp ("Pos & Att: X,Y,Z,Pitch ");
     disp([mea_x_pos mea_y_pos mea_z_pos mea_pitch]);
     a_des(3,:) = a_fb_z + g - a_rd_z;
@@ -332,6 +330,7 @@ while ishandle(H)
     desired_heading = derivatives(6,i);
     true_heading = desired_heading;
     log_head = true_heading;
+    mea_xyz_pos_past = mea_xyz_pos;
     
     %% Bodyrates (for collective thrust test, this entire section can be disabled)
     qz = eul2quat(mea_euler); % default seq is q = [w x y z]
