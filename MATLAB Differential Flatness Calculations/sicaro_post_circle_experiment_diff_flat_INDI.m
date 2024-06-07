@@ -86,6 +86,8 @@ trigger = 1; % temporary trigger for now to go into offboard mode
 mea_xyz_pos = zeros(3,1);
 mea_xyz_vel = zeros(3,1);
 mea_xyz_acc = zeros(3,1);
+mea_bod_pitch_deg = zeros(1,1); % must be in deg
+
 
 % gains
 kpos = [1500.0;1500.0;10];
@@ -217,19 +219,21 @@ while ishandle(H)
     mea_vel = transpose(variable.gp.velocity); % extract velocity measurements in real time from opti track
     mea_acc = transpose(variable.gp.acceleration); % extract acceleration measurements in real time from opti track ( need to do ***)
     mea_rotation = variable.gp.euler(3); 
-    mea_angular_rate(3,1) = variable.gp.euler_rate(3); % (3,1) option is given to body rotation rate
+    mea_angular_rate(3,1) = variable.gp.euler_rate(3); % (3,1) option is given to body rotation rate, if cw from top, this should be negative
+    mea_bod_pitch_deg = rad2deg(variable.gp.bod_pitch); % need to declare this variable in body.obj
+
 
     % need to test w opti track coordinate system to see if it can output this results 
     if abs(variable.gp.euler(3)) < deg2rad(45) || abs(variable.gp.euler(3)) > deg2rad(135) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
     %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-        mea_angles(2,1) = variable.gp.euler(2); % disk pitch
+        mea_angles(2,1) = variable.gp.euler(2); % disk pitch, body roll
         mea_angular_rate(2,1) = variable.gp.euler_rate(2); % disk pitch rate, body roll
         mea_precession_angle(1,1) = variable.gp.euler_rate_rate(2)/mea_angular_rate(3,1); % needa check if euler rate(3) is negative for our craft, lets hope it is since its spins cw, anti-cw is positive
     end
 
     if abs(variable.gp.euler(3)) > deg2rad(45) && abs(variable.gp.euler(3)) < deg2rad(135) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
     %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-        mea_angles(1,1) = variable.gp.euler(2); % disk roll
+        mea_angles(1,1) = variable.gp.euler(2); % disk roll, body roll
         mea_angular_rate(1,1) = variable.gp.euler_rate(2); % disk roll rate, body roll
         mea_precession_angle(2,1) = variable.gp.euler_rate_rate(2)/mea_angular_rate(3,1);
     end
@@ -302,7 +306,7 @@ while ishandle(H)
     a_rd = [mea_xyz_vel(1,1)*linear_drag_coeff(1,1);mea_xyz_vel(2,1)*linear_drag_coeff(1,2);mea_xyz_vel(3,1)*linear_drag_coeff(1,3)]; 
     a_des(1,:) = (kpos(1,1)*error(1,1)) + (kdpos(1,1)*(error(1,1) - error_past(1,1))) + (kvel(1,1)*(derivatives(14,i) - mea_xyz_vel(1,1))) + derivatives(17,i) - a_rd(1,1); % x
     a_des(2,:) = (kpos(2,1)*error(2,1)) + (kdpos(2,1)*(error(2,1) - error_past(2,1))) + (kvel(2,1)*(derivatives(15,i) - mea_xyz_vel(2,1))) + derivatives(18,i) - a_rd(2,1); % y
-    a_des(3,:) = (kpos(3,1)*error(3,1)) + (kdpos(3,1)*(error(3,1) - error_past(3,1))) + g - a_rd(3,1); % z, ellipse needa add the derivatives for z
+    a_des(3,:) = (kpos(3,1)*error(3,1)) + (kdpos(3,1)*(error(3,1) - error_past(3,1))) + g - a_rd(3,1); % z, ellipse needa add the derivatives for z, a_ref is negative 
     %% z (can be used to test, needs to activate hover flaps mode)
     a_des_z(3,:) = a_des(3,:); 
     error_past = error; 
@@ -348,7 +352,7 @@ while ishandle(H)
     % can always break here to make sure shit is running correctly
     
     if error_quat(:,1) < 0
-        body_rates = -2 * prp.* error_quat(:,2:3);
+        body_rates = -2 * prp.* error_quat(:,2:3); % 2 and 3 refers to omega x and y
     else
         body_rates = 2 * prp.* error_quat(:,2:3);
     end
@@ -359,28 +363,37 @@ while ishandle(H)
     %% Collective thrust (can be used to test)
     % cmd_z = dot(transpose(zd),transpose(a_des)); %% command sent to motor, need to include filter to make sure negative cmds dun go thru
     cmd_z = dot(transpose(zd_z),transpose(a_des_z)); %% command sent to motor, need to include filter to make sure negative cmds dun go thru
+    rho = 1.225;
+    radius = 0.61;
+    cl = 0.11 * mea_bod_pitch_deg; % gradient for cl taken from naca 0006, pitch must be in deg
+    cd = 0.023 * mea_bod_pitch_deg; % gradient for cd taken from naca 0006, pitch must be in deg
+    chord_length = 0.1;
+    mass = 0.16;
+    Fz_wo_mass = -1*(cl*rho*chord_length*(radius^3))/(6*mass);
+    Fd_wo_mass = 1*(cd*rho*chord_length*(radius^3))/(6*mass);
+    omega_z = sqrt(cmd_z/(Fz_wo_mass + Fd_wo_mass)); % omega z dun nid to port over from diff_flat component, also by right shud be positive
     
-    % (INDI Component for Z)
-    % cmd_z = motor_feedback + cmd_z - mea_acc(3,:);
+    % (INDI Component for Collective Thrust)
+    omega_z = omega_z - abs(mea_angular_rate(3,1));
 
-    cmd_z = 0.05*cmd_z;
-    if cmd_z > 0.7
-        cmd_z = 0.7;
+    % omega_z = 0.05*omega_z;
+    if omega_z > 0.7
+        omega_z = 0.7;
     end
-    log_thrust = cmd_z;
-    disp("cmd_z: "); % use fprint 
-    disp(cmd_z);  
+    log_thrust = omega_z;
+    %fprintf('Desired (%d) vs Actual (%d)', counter_des, counter_actl);
+    fprintf('Omega z is : %d', omega_z);
 
     % left off here, attitude controller ends here...
     %% Diff Flat Feedforward component (actual)
-    ff_n = (derivatives(4,i) + linear_drag_coeff(:,1)*derivatives(3,i));
-    v = [derivatives(4,i),0,0];
-    ff_d = cmd_z + linear_drag_coeff(:,1)*dot(zd,v) + linear_drag_coeff(:,1)*dot(ex,v) - linear_drag_coeff(:,3)*dot(zd,v);
-    if ff_d == 0
-        body_rate_ref = 0;
-    else
-        body_rate_ref = ff_n/ff_d;
-    end
+    % ff_n = (derivatives(4,i) + linear_drag_coeff(:,1)*derivatives(3,i));
+    % v = [derivatives(4,i),0,0];
+    % ff_d = cmd_z + linear_drag_coeff(:,1)*dot(zd,v) + linear_drag_coeff(:,1)*dot(ex,v) - linear_drag_coeff(:,3)*dot(zd,v);
+    % if ff_d == 0
+    %     body_rate_ref = 0;
+    % else
+    %     body_rate_ref = ff_n/ff_d;
+    % end
     
     %% testing
     % body_rate_ref = 0;
@@ -391,11 +404,6 @@ while ishandle(H)
 %         ppq = 0.07;
 %     end
    
-    %% precession controller
-    %pc = 0.01 * (omega_mea - precession_rate); 
-    %disp("precession signal");
-    %disp(pc);
-
     %% inclusion of diff flatness component
     cmd_bodyrate = ppq * (body_rates(:,2) - mea_pitch_rate + body_rate_ref); % reverted (now bod rate ref is separate from the gain) gain for cyclic, multiply this to azimuth sin or cos from quadrant, the other value is the desired heading
     
