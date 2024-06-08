@@ -71,10 +71,19 @@ mea_vel = zeros(3,1); % extract velocity measurements in real time from opti tra
 mea_acc = zeros(3,1); % extract acceleration measurements in real time from opti track 
 
 % RPY
-mea_angles = zeros(3,1); % euler angles rpy for disk roll and pitch (x,y), which is body roll throughout
+
 mea_precession_angle = zeros(2,1); % euler angle for disk roll, precession angle
-mea_angular_rate = zeros(3,1); % euler angles rpy for disk roll and pitch rate (x,y), which is body roll rate throughout
+mea_angles = zeros(3,1); % selected disk angles (disk frame)
+mea_angular_rate = zeros(3,1); % selected disk angles rate (disk frame)
+mea_angular_rate_rate = zeros(3,1); % selected disk angles rate rate (disk frame)
 mea_rotation = zeros(1,1); % body yaw angle for azimuth, must be in RAD
+inertia_frame_angles = zeros(3,1); % world frame angles
+inertia_frame_angular_rate = zeros(3,1); % world frame angular rate
+inertia_frame_angular_rate_rate = zeros(3,1); % world frame angular rate rate
+body_frame_angular_rate = zeros(3,1); % body frame angular rate
+body_frame_angular_rate_rate = zeros(3,1); % body frame angular rate rate
+inverted_body_frame_angular_rate = zeros(3,1); % inverted body frame angular rate
+inverted_body_frame_angular_rate_rate = zeros(3,1); % inverted body frame angular rate rate
 
 mea_xyz_pos_mag = zeros(3,1);
 mea_xyz_pos_past = [mid_x + radius; mid_y; 0];
@@ -218,35 +227,58 @@ while ishandle(H)
     mea_pos = transpose(variable.gp.position); % extract position measurements in real time from opti track 
     mea_vel = transpose(variable.gp.velocity); % extract velocity measurements in real time from opti track
     mea_acc = transpose(variable.gp.acceleration); % extract acceleration measurements in real time from opti track ( need to do ***)
-    mea_rotation = variable.gp.euler(3); 
-    mea_angular_rate(3,1) = variable.gp.euler_rate(3); % (3,1) option is given to body rotation rate, if cw from top, this should be negative
-    mea_bod_pitch_deg = rad2deg(variable.gp.bod_pitch); % need to declare this variable in body.obj
-
-
-    % need to test w opti track coordinate system to see if it can output this results 
-    if abs(variable.gp.euler(3)) < deg2rad(45) || abs(variable.gp.euler(3)) > deg2rad(135) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-    %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-        mea_angles(2,1) = variable.gp.euler(2); % disk pitch, body roll
-        mea_angular_rate(2,1) = variable.gp.euler_rate(2); % disk pitch rate, body roll
-        mea_precession_angle(1,1) = variable.gp.euler_rate_rate(2)/mea_angular_rate(3,1); % needa check if euler rate(3) is negative for our craft, lets hope it is since its spins cw, anti-cw is positive
-    end
-
-    if abs(variable.gp.euler(3)) > deg2rad(45) && abs(variable.gp.euler(3)) < deg2rad(135) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-    %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-        mea_angles(1,1) = variable.gp.euler(2); % disk roll, body roll
-        mea_angular_rate(1,1) = variable.gp.euler_rate(2); % disk roll rate, body roll
-        mea_precession_angle(2,1) = variable.gp.euler_rate_rate(2)/mea_angular_rate(3,1);
-    end
-
-    phi = mea_angles(1,1); % roll
-    theta = mea_angles(2,1); % pitch
+    inertia_frame_angles = transpose(variable.gp.euler); % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
+    inertia_frame_angular_rate = transpose(variable.gp.euler_rate); % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
+    inertia_frame_angular_rate_rate = transpose(variable.gp.euler_rate_rate); % % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
+    
+    %% Body
+    phi = inertia_frame_angles(1,1); % roll - from inertia eul_xyz(2) about y, body pitch
+    theta = inertia_frame_angles(2,1); % pitch - from inertia eul_xyz(1) about x, body roll, body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
 
     W = [ 1,  0,        -sin(theta);
           0,  cos(phi),  cos(theta)*sin(phi);
-          0, -sin(phi),  cos(theta)*cos(phi) ];
+          0, -sin(phi),  cos(theta)*cos(phi) ]; % inertia to body frame
 
+    body_frame_angular_rate = W*inertia_frame_angular_rate;
+    body_frame_angular_rate_rate = W*inertia_frame_angular_rate_rate;
+    mea_bod_pitch_deg = rad2deg(-1*phi); % it would be negative y angle pitching up hence the negation 
+    mea_rotation = inertia_frame_angles(3,1); % negative
     J = W.'*I*W; % back portion of the INDI
 
+    
+    %% Disk & Gyro (in the event of we need to invert the craft upside down)
+    % d_phi = pi + inertia_frame_angles(1,1); % roll - from inertia eul_xyz(2) about y, body pitch
+    % d_theta = inertia_frame_angles(2,1); % pitch - from inertia eul_xyz(1) about x, bo
+    % 
+    % D = [ 1,  0,        -sin(d_theta);
+    %       0,  cos(phi),  cos(d_theta)*sin(d_phi);
+    %       0, -sin(phi),  cos(d_theta)*cos(d_phi) ]; % inertia to disk frame
+    % 
+    % inverted_body_frame_angular_rate = D*body_frame_angular_rate; % not really disk frame per se, more of body frame inverted 
+    % inverted_body_frame_angular_rate_rate = D*body_frame_angular_rate_rate;
+    
+
+    %% Disk & Gyro
+
+    mea_angular_rate(3,1) = 0;    
+    % need to test w opti track coordinate system to see if it can output this results 
+    if abs(mea_rotation) < deg2rad(45) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+        mea_angles(2,1) = theta; % disk pitch, body roll, can still follow body convention cos its jus a negative of disk 
+        mea_angular_rate(2,1) = body_frame_angular_rate(2,1); % disk pitch rate, body roll
+        mea_angular_rate_rate(2,1) = body_frame_angular_rate_rate(2,1);
+        mea_precession_angle(1,1) = mea_angular_rate_rate(2,1)/body_frame_angular_rate(3,1); % needa check if euler rate(3) is negative for our craft, lets hope it is since its spins cw, anti-cw is positive
+    end
+
+    if mea_rotation < deg2rad(-45) && mea_rotation > deg2rad(-135) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+        mea_angles(1,1) = theta; % disk roll, body roll
+        mea_angular_rate(1,1) = body_frame_angular_rate(2,1); % disk roll rate, body roll
+        mea_angular_rate_rate(1,1) = body_frame_angular_rate_rate(2,1);
+        mea_precession_angle(2,1) = mea_angular_rate_rate(1,1)/body_frame_angular_rate(3,1);
+    end
+
+    
     %position assignment
     % mea_pos(1,:) is tangent to wall (X) and mea_pos(2,:) is along wall (Y) -- updated 
     mea_xyz_pos(2,1) = mea_pos(2,:);
