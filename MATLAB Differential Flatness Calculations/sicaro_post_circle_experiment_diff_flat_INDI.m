@@ -270,7 +270,7 @@ while ishandle(H)
         mea_precession_angle(1,1) = mea_angular_rate_rate(2,1)/body_frame_angular_rate(3,1); % needa check if euler rate(3) is negative for our craft, lets hope it is since its spins cw, anti-cw is positive
     end
 
-    if mea_rotation < deg2rad(-45) && mea_rotation > deg2rad(-135) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    if mea_rotation < deg2rad(135) && mea_rotation > deg2rad(45) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
     %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
         mea_angles(1,1) = theta; % disk roll, body roll
         mea_angular_rate(1,1) = body_frame_angular_rate(2,1); % disk roll rate, body roll
@@ -406,7 +406,7 @@ while ishandle(H)
     omega_z = sqrt(cmd_z/(Fz_wo_mass + Fd_wo_mass)); % omega z dun nid to port over from diff_flat component, also by right shud be positive
     
     % (INDI Component for Collective Thrust)
-    omega_z = omega_z - abs(mea_angular_rate(3,1));
+    omega_z = omega_z - abs(body_frame_angular_rate(3,1));
 
     % omega_z = 0.05*omega_z;
     if omega_z > 0.7
