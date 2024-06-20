@@ -565,6 +565,7 @@ classdef test_ExpAuxiliaryFunctions
             g = 9.81;
             rho = 1.225;
             radius = 0.61;
+            pitch = abs(pitch);
             cl = 0.11 * pitch; % gradient for cl taken from naca 0006, pitch must be in deg
             cd = 0.023 * pitch; % gradient for cd taken from naca 0006, pitch must be in deg
             chord_length = 0.1;
