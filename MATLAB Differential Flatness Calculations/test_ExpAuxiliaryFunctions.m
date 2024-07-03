@@ -505,7 +505,9 @@ classdef test_ExpAuxiliaryFunctions
 
             % disk yawing 
             diff_rad = zeros(1,(sample_per_loop*2)-1);
-            diff_deg = zeros(1,(sample_per_loop*2)-1);
+            diff_deg = zeros(1,(sample_per_loop*2)-1); 
+            diff_diff_rad = zeros(1,(sample_per_loop*2)-2);
+            diff_diff_deg = zeros(1,(sample_per_loop*2)-2);
  
             for v = 1:2
                 for i = 1:(sample_per_loop*2)
@@ -524,6 +526,11 @@ classdef test_ExpAuxiliaryFunctions
             for i = 1:(sample_per_loop*2)-1
                 diff_rad(1,i) = (direction(1,i+1) - direction(1,i))/(time_per_setpt);
                 diff_deg(1,i) = (direction_deg(1,i+1) - direction_deg(1,i))/(time_per_setpt);    
+            end
+
+            for i = 1:(sample_per_loop*2)-2
+                diff_diff_rad(1,i) = (diff_rad(1,i+1) - diff_rad(1,i))/(time_per_setpt);
+                diff_diff_deg(1,i) = (diff_deg(1,i+1) - diff_deg(1,i))/(time_per_setpt);    
             end
            
             % mag = zeros(1,(sample_per_loop*2));
@@ -557,6 +564,8 @@ classdef test_ExpAuxiliaryFunctions
             mag(25,:) = invert_sna(3,1:sample_per_loop*2); % z
             mag(26,1:(sample_per_loop*2)-1) = diff_rad(1,:); % rad/s
             mag(27,1:(sample_per_loop*2)-1) = diff_deg(1,:); % deg/s
+            mag(28,1:(sample_per_loop*2)-2) = diff_diff_rad(1,:); % rad/s/s
+            mag(29,1:(sample_per_loop*2)-2) = diff_diff_deg(1,:); % deg/s/s
             %circle_xy(2,1:1130)
         end
 
