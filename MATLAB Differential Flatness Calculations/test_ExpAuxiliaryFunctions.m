@@ -570,7 +570,7 @@ classdef test_ExpAuxiliaryFunctions
         end
 
 
-        function [outputs] = diff_flat(obj,pitch,drag_terms,vel,acc,jerk,snap,trajectory)  
+        function [outputs] = diff_flat(obj,pitch,drag_terms,vel,acc,jerk,snap,trajectory,rotation_dir)  
             g = 9.81;
             rho = 1.225;
             radius = 0.61;
@@ -579,9 +579,13 @@ classdef test_ExpAuxiliaryFunctions
             cd = 0.023 * pitch; % gradient for cd taken from naca 0006, pitch must be in deg
             chord_length = 0.1;
             mass = 0.16;
+            Jxx = 6.54567;
+            Jyy = 7.41711;
+            Jzz = 9.51008;
             Fz_wo_mass = -1*(cl*rho*chord_length*(radius^3))/(6*mass);
             Fd_wo_mass = 1*(cd*rho*chord_length*(radius^3))/(6*mass);
-            direction = -1; % cw from top is negative, z vector points downwards when we rotate cw from top  
+            direction = rotation_dir; % cw from top is negative, z vector points downwards when we rotate cw from top 
+            % ccw from top is positive, z vector points upwards when we rotate ccw from top 
             if trajectory == "ellipse"
                 omega_z_body = sqrt((-1*(acc(1,3) + (vel(1,3)*drag_terms(1,3)) + g))/(Fz_wo_mass + Fd_wo_mass));  
                 c = Fz_wo_mass * (omega_z_body^2);
@@ -590,8 +594,8 @@ classdef test_ExpAuxiliaryFunctions
                 collective_thrust_dot = jerk(1,3) + (acc(1,3)*drag_terms(1,3)) - (diff_flat_omega_y_disk*drag_terms(1,1)*vel(1,1)) + (diff_flat_omega_x_disk*drag_terms(1,2)*vel(1,2));
                 diff_flat_omega_x_disk_dot = -1*(snap(1,2) + (2*collective_thrust_dot*diff_flat_omega_x_disk))/(c);
                 diff_flat_omega_y_disk_dot = (snap(1,1) - (2*collective_thrust_dot*diff_flat_omega_y_disk))/(c);
-                omega_precession_x_gyro = diff_flat_omega_x_disk_dot/(direction*omega_z_body);
-                omega_precession_y_gyro = diff_flat_omega_y_disk_dot/(direction*omega_z_body);
+                omega_precession_x_gyro = (Jyy*diff_flat_omega_x_disk_dot)/(Jzz*direction*omega_z_body);
+                omega_precession_y_gyro = (Jxx*diff_flat_omega_y_disk_dot)/(Jzz*direction*omega_z_body);
             else
                 omega_z_body = sqrt((-1*(g))/(Fz_wo_mass + Fd_wo_mass));
                 c = Fz_wo_mass * (omega_z_body^2);
@@ -600,8 +604,8 @@ classdef test_ExpAuxiliaryFunctions
                 collective_thrust_dot = -1*(diff_flat_omega_y_disk*drag_terms(1,1)*vel(1,1)) + (diff_flat_omega_x_disk*drag_terms(1,2)*vel(1,2));
                 diff_flat_omega_x_disk_dot = -1*(snap(1,2) + (2*collective_thrust_dot*diff_flat_omega_x_disk))/(c);
                 diff_flat_omega_y_disk_dot = (snap(1,1) - (2*collective_thrust_dot*diff_flat_omega_y_disk))/(c);
-                omega_precession_x_gyro = diff_flat_omega_x_disk_dot/(direction*omega_z_body);
-                omega_precession_y_gyro = diff_flat_omega_y_disk_dot/(direction*omega_z_body); % data shows that precession forces counter each other from 2 axes
+                omega_precession_x_gyro = (100*Jyy*diff_flat_omega_x_disk_dot)/(Jzz*direction*omega_z_body);
+                omega_precession_y_gyro = (20*Jxx*diff_flat_omega_y_disk_dot)/(Jzz*direction*omega_z_body); % data shows that precession forces counter each other from 2 axes
             end
             
             outputs(1,1) = diff_flat_omega_x_disk; 
