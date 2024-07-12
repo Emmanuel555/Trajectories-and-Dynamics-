@@ -579,8 +579,8 @@ classdef test_ExpAuxiliaryFunctions
             cd = 0.023 * pitch; % gradient for cd taken from naca 0006, pitch must be in deg
             chord_length = 0.1;
             mass = 0.16;
-            Jxx = 6.54567;
-            Jyy = 7.41711;
+            Jxx = 6.54567; % 0.00099
+            Jyy = 7.41711; % 0.00099
             Jzz = 9.51008;
             Fz_wo_mass = -1*(cl*rho*chord_length*(radius^3))/(6*mass);
             Fd_wo_mass = 1*(cd*rho*chord_length*(radius^3))/(6*mass);
