@@ -576,17 +576,16 @@ classdef test_ExpAuxiliaryFunctions
             radius = 0.61;
             pitch = abs(pitch);
             cl = 0.11 * pitch; % gradient for cl taken from naca 0006, pitch must be in deg
-            cd = 0.023 * pitch; % gradient for cd taken from naca 0006, pitch must be in deg
+            cd = 0.093 * pitch; % gradient for cd taken from naca 0006, pitch must be in deg
             chord_length = 0.1;
             mass = 0.16;
-            Jxx = 6.54567; % 0.00099
+            Jxx = 6.54567; % 0.00099 need to take from disk pt of view
             Jyy = 7.41711; % 0.00099
             Jzz = 9.51008;
             Fz_wo_mass = -1*(cl*rho*chord_length*(radius^3))/(6*mass);
             Fd_wo_mass = 1*(cd*rho*chord_length*(radius^3))/(6*mass);
             direction = rotation_dir; % cw from top is negative, z vector points downwards when we rotate cw from top 
             % ccw from top is positive, z vector points upwards when we rotate ccw from top 
-            % rmb that precession is inverted, precession now is always in the opp direction as the rotation of the body
             if trajectory == "ellipse"
                 omega_z_body = sqrt((-1*(acc(1,3) + (vel(1,3)*drag_terms(1,3)) + g))/(Fz_wo_mass + Fd_wo_mass));  
                 c = Fz_wo_mass * (omega_z_body^2);
@@ -605,8 +604,8 @@ classdef test_ExpAuxiliaryFunctions
                 collective_thrust_dot = -1*(diff_flat_omega_y_disk*drag_terms(1,1)*vel(1,1)) + (diff_flat_omega_x_disk*drag_terms(1,2)*vel(1,2));
                 diff_flat_omega_x_disk_dot = -1*(snap(1,2) + (2*collective_thrust_dot*diff_flat_omega_x_disk))/(c);
                 diff_flat_omega_y_disk_dot = (snap(1,1) - (2*collective_thrust_dot*diff_flat_omega_y_disk))/(c);
-                omega_precession_x_gyro = (1*Jyy*diff_flat_omega_x_disk_dot)/(Jzz*direction*1/2*omega_z_body);
-                omega_precession_y_gyro = (1*Jxx*diff_flat_omega_y_disk_dot)/(Jzz*direction*1/2*omega_z_body); % data shows that precession forces counter each other from 2 axes
+                omega_precession_x_gyro = (1*Jyy*diff_flat_omega_x_disk_dot)/(Jzz*direction*omega_z_body);
+                omega_precession_y_gyro = (1*Jxx*diff_flat_omega_y_disk_dot)/(Jzz*direction*omega_z_body); % data shows that precession forces counter each other from 2 axes
             end
             
             outputs(1,1) = diff_flat_omega_x_disk; 
@@ -640,7 +639,7 @@ classdef test_ExpAuxiliaryFunctions
             % if angle = 0, it would just be an identity quat matrix
             error_quat = [cos(angle/2),B*sin(angle/2)];
 
-            % can alwways break here to make sure shit is running correctly
+            % can always break here to make sure shit is running correctly
     
             if error_quat(:,1) < 0
                 body_rates = -2 * prp.* error_quat(:,2:3);
