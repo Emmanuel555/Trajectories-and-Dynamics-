@@ -579,9 +579,9 @@ classdef test_ExpAuxiliaryFunctions
             cd = 0.023 * pitch; % gradient for cd taken from naca 0006, pitch must be in deg
             chord_length = 0.1;
             mass = 0.16;
-            Jxx = 0.00077; % symmetrical so jxx = jyy
-            Jyy = 0.00077; % symmetrical so jxx = jyy
-            Jzz = 0.0095723985;
+            Jxx = 0.014; % symmetrical so jxx = jyy
+            Jyy = 0.014; % symmetrical so jxx = jyy
+            Jzz = 0.0151724197;
             Fz_wo_mass = -1*(cl*rho*chord_length*(radius^3))/(6*mass);
             Fd_wo_mass = 1*(cd*rho*chord_length*(radius^3))/(6*mass);
             direction = rotation_dir; % cw from top is negative, z vector points downwards when we rotate cw from top 
@@ -604,8 +604,8 @@ classdef test_ExpAuxiliaryFunctions
                 collective_thrust_dot = -1*(diff_flat_omega_y_disk*drag_terms(1,1)*vel(1,1)) + (diff_flat_omega_x_disk*drag_terms(1,2)*vel(1,2));
                 diff_flat_omega_x_disk_dot = -1*(snap(1,2) + (2*collective_thrust_dot*diff_flat_omega_x_disk))/(c);
                 diff_flat_omega_y_disk_dot = (snap(1,1) - (2*collective_thrust_dot*diff_flat_omega_y_disk))/(c);
-                omega_precession_x_gyro = (50*Jyy*diff_flat_omega_x_disk_dot)/(Jzz*direction*omega_z_body);
-                omega_precession_y_gyro = (50*Jxx*diff_flat_omega_y_disk_dot)/(Jzz*direction*omega_z_body); % data shows that precession forces counter each other from 2 axes
+                omega_precession_x_gyro = (10*Jyy*diff_flat_omega_x_disk_dot)/(Jzz*direction*omega_z_body);
+                omega_precession_y_gyro = (10*Jxx*diff_flat_omega_y_disk_dot)/(Jzz*direction*omega_z_body); % data shows that precession forces counter each other from 2 axes
             end
             
             outputs(1,1) = diff_flat_omega_x_disk; 
