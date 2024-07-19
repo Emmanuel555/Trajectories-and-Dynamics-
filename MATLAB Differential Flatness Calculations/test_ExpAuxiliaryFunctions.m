@@ -604,8 +604,10 @@ classdef test_ExpAuxiliaryFunctions
                 collective_thrust_dot = -1*(diff_flat_omega_y_disk*drag_terms(1,1)*vel(1,1)) + (diff_flat_omega_x_disk*drag_terms(1,2)*vel(1,2));
                 diff_flat_omega_x_disk_dot = -1*(snap(1,2) + (2*collective_thrust_dot*diff_flat_omega_x_disk))/(c);
                 diff_flat_omega_y_disk_dot = (snap(1,1) - (2*collective_thrust_dot*diff_flat_omega_y_disk))/(c);
-                omega_precession_y_gyro = (50*Jyy*diff_flat_omega_x_disk_dot)/(Jzz*direction*omega_z_body);
-                omega_precession_x_gyro = (50*Jxx*diff_flat_omega_y_disk_dot)/(Jzz*direction*omega_z_body); % data shows that precession forces counter each other from 2 axes
+                omega_precession_y_gyro = (50*Jxx*diff_flat_omega_x_disk_dot)/(Jzz*direction*omega_z_body);
+                omega_precession_x_gyro = (50*Jyy*diff_flat_omega_y_disk_dot)/(Jzz*direction*omega_z_body); % data shows that precession forces counter each other from 2 axes
+                omega_precession_y_dot_gyro = 50*(-1*(Jxx*jerk(1,2)*radius))/(Jzz*direction*omega_z_body);
+                omega_precession_x_dot_gyro = 50*(Jyy*jerk(1,1)*radius)/(Jzz*direction*omega_z_body);
             end
             
             outputs(1,1) = diff_flat_omega_x_disk; 
@@ -614,8 +616,10 @@ classdef test_ExpAuxiliaryFunctions
             outputs(1,4) = diff_flat_omega_y_disk_dot;
             outputs(1,5) = omega_precession_x_gyro; % account into consideration the phase delay (pi/2) and the inversion as prev shown
             outputs(1,6) = omega_precession_y_gyro;
-            outputs(1,7) = c;
-            outputs(1,8) = direction*omega_z_body;
+            outputs(1,7) = omega_precession_x_dot_gyro; % account into consideration the phase delay (pi/2) and the inversion as prev shown
+            outputs(1,8) = omega_precession_y_dot_gyro;
+            outputs(1,9) = c;
+            outputs(1,10) = direction*omega_z_body;
         end
 
         function [outputs] = test_attitude(obj,mea_euler,zd)
