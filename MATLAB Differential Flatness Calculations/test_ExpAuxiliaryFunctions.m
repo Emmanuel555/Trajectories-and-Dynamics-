@@ -606,8 +606,8 @@ classdef test_ExpAuxiliaryFunctions
                 diff_flat_omega_y_disk_dot = (snap(1,1) - (2*collective_thrust_dot*diff_flat_omega_y_disk))/(c);
                 omega_precession_y_gyro = (50*Jxx*diff_flat_omega_x_disk_dot)/(Jzz*direction*omega_z_body);
                 omega_precession_x_gyro = (50*Jyy*diff_flat_omega_y_disk_dot)/(Jzz*direction*omega_z_body); % data shows that precession forces counter each other from 2 axes
-                omega_precession_y_dot_gyro = 50*(-1*(Jxx*jerk(1,2)*radius))/(Jzz*direction*omega_z_body);
-                omega_precession_x_dot_gyro = 50*(Jyy*jerk(1,1)*radius)/(Jzz*direction*omega_z_body);
+                omega_precession_y_dot_gyro = 10*(-1*(Jxx*jerk(1,2)*radius))/(Jzz*direction*omega_z_body);
+                omega_precession_x_dot_gyro = 10*(Jyy*jerk(1,1)*radius)/(Jzz*direction*omega_z_body);
             end
             
             outputs(1,1) = diff_flat_omega_x_disk; 
