@@ -5,7 +5,7 @@ clc
 
 %% Variables
 import body_obj.*
-hz = 300; % 100 hz for optitrack
+hz = 60; % original value here was 300; % 100 hz for optitrack, matlab rate is at 60 
 rate= 1/hz; % in 1/Hz, how fast the graph updates in terms of period (time)
 bodyname=["gp"]; % multiple bodies allowed
 %data_arr=["Mtime","Otime","name","x","y","z","qx","qy","qz","qw","euy","eup","eur","eury","eurp","eurr","vx","vy", "vz","pitch_norm"]; % Array to store to excel
