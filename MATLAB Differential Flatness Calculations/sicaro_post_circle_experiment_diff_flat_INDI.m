@@ -9,7 +9,7 @@ hz = 60; % original value here was 300; % 100 hz for optitrack, matlab rate is a
 rate= 1/hz; % in 1/Hz, how fast the graph updates in terms of period (time)
 bodyname=["gp"]; % multiple bodies allowed
 %data_arr=["Mtime","Otime","name","x","y","z","qx","qy","qz","qw","euy","eup","eur","eury","eurp","eurr","vx","vy", "vz","pitch_norm"]; % Array to store to excel
-data_arr=["Mtime","Otime","name","x","y","z","euy","eup","eur","vx","vy","vz","bod_rates","thrust","heading"]; % Array to store to excel
+data_arr=["Mtime","Otime","name","x","y","z","euy","eup","eur","vx","vy","vz","ax","ay","az","bod_rates","thrust","heading"]; % Array to store to excel
 
 %% Create OptiTrack object
 obj = OptiTrack;
@@ -118,9 +118,9 @@ a_past = zeros(3,1);
 g = -9.81;
 
 % linear drag coeff
-Dx = 0.03;
-Dy = 0.03;
-Dz = 0.01;
+Dx = 0.0;
+Dy = 0.0;
+Dz = 0.0;
 linear_drag_coeff = [Dx,Dy,Dz];
 
 % unit vectors
@@ -198,7 +198,7 @@ while ishandle(H)
                     old_timestamp = rb(k).TimeStamp; 
 %                     disp(rad2deg(variable.("gp").euler));
 %                   data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).quarternion(1) variable.(my_field).quarternion(2) variable.(my_field).quarternion(3) variable.(my_field).quarternion(4) variable.(my_field).euler(1) variable.(my_field).euler(2) variable.(my_field).euler(3) variable.(my_field).euler_rate(1) variable.(my_field).euler_rate(2) variable.(my_field).euler_rate(3) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3)]];
-                    data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(3) variable.(my_field).euler(2) variable.(my_field).euler(1) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) log_bod_rates log_thrust log_head]];
+                    data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(3) variable.(my_field).euler(2) variable.(my_field).euler(1) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) variable.(my_field).acc(1) variable.(my_field).acc(2) variable.(my_field).acc(3) log_bod_rates log_thrust log_head]];
                     
                 end
             end
@@ -262,7 +262,7 @@ while ishandle(H)
 
     mea_angular_rate(3,1) = 0;    
     % need to test w opti track coordinate system to see if it can output this results 
-    if abs(mea_rotation) < deg2rad(45) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    if abs(mea_rotation) < deg2rad(45) && abs(mea_rotation) > deg2rad(135) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
     %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
         mea_angles(2,1) = theta; % disk pitch, body roll, can still follow body convention cos its jus a negative of disk 
         mea_angular_rate(2,1) = body_frame_angular_rate(2,1); % disk pitch rate, body roll
@@ -270,7 +270,7 @@ while ishandle(H)
         mea_precession_angle(1,1) = mea_angular_rate_rate(2,1)/body_frame_angular_rate(3,1); % needa check if euler rate(3) is negative for our craft, lets hope it is since its spins cw, anti-cw is positive
     end
 
-    if mea_rotation < deg2rad(135) && mea_rotation > deg2rad(45) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    if abs(mea_rotation) < deg2rad(135) && abs(mea_rotation) > deg2rad(45) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
     %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
         mea_angles(1,1) = theta; % disk roll, body roll
         mea_angular_rate(1,1) = body_frame_angular_rate(2,1); % disk roll rate, body roll
@@ -401,11 +401,11 @@ while ishandle(H)
     cd = 0.023 * mea_bod_pitch_deg; % gradient for cd taken from naca 0006, pitch must be in deg
     chord_length = 0.1;
     mass = 0.16;
-    Fz_wo_mass = -1*(cl*rho*chord_length*(radius^3))/(6*mass);
-    Fd_wo_mass = 1*(cd*rho*chord_length*(radius^3))/(6*mass);
-    omega_z = sqrt(cmd_z/(Fz_wo_mass + Fd_wo_mass)); % omega z dun nid to port over from diff_flat component, also by right shud be positive
+    Fz_wo_mass = 1*(cl*rho*chord_length*(radius^3))/(6*mass);
+    Fd_wo_mass = -1*(cd*rho*chord_length*(radius^3))/(6*mass);
+    omega_z = sqrt(cmd_z/(Fz_wo_mass + Fd_wo_mass)); % omega z as motor input
     
-    % (INDI Component for Collective Thrust)
+    % (INDI Component for Collective Thrust) %%% continue from here
     omega_z = omega_z - abs(body_frame_angular_rate(3,1));
 
     % omega_z = 0.05*omega_z;
