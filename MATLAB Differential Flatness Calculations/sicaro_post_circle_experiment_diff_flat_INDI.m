@@ -71,7 +71,6 @@ mea_vel = zeros(3,1); % extract velocity measurements in real time from opti tra
 mea_acc = zeros(3,1); % extract acceleration measurements in real time from opti track 
 
 % RPY
-
 mea_precession_angle = zeros(2,1); % euler angle for disk roll, precession angle
 mea_angles = zeros(3,1); % selected disk angles (disk frame)
 mea_angular_rate = zeros(3,1); % selected disk angles rate (disk frame)
@@ -104,10 +103,16 @@ kvel = [1300.0;1300.0;10];
 kdpos = [1300.0;1300.0;105];
 %kpos_z = 10;
 %kd_z = 105;
-prp = [1,1]; % bodyrate gain
+kpa = [0.4;0.6]; % att p gain - angle 2 x 1
+kpr = [30;30;0]; % bodyrate p gain - jerk 3 x 1
+kpang = [30;30;0]; % bodyangacc p gain - 3 x 1
+%kdr = [1;1;1]; % bodyrate d gain - jerk
 ppq = 0.40; % body acc gain
 ppc = 0.10; % centrifugal gain, alternatively, ppc = 1 - ppq
 dpp = 30;
+
+% motor gains
+kt = 100;
 
 % init a_des
 a_des = zeros(3,1);
@@ -149,7 +154,7 @@ test = 1;
 old_timestamp = 0;
 
 % Logging
-log_bod_rates = zeros(1,2);
+log_bod_acc = zeros(3,1);
 log_head = 0;
 log_thrust = 0;
 
@@ -198,7 +203,7 @@ while ishandle(H)
                     old_timestamp = rb(k).TimeStamp; 
 %                     disp(rad2deg(variable.("gp").euler));
 %                   data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).quarternion(1) variable.(my_field).quarternion(2) variable.(my_field).quarternion(3) variable.(my_field).quarternion(4) variable.(my_field).euler(1) variable.(my_field).euler(2) variable.(my_field).euler(3) variable.(my_field).euler_rate(1) variable.(my_field).euler_rate(2) variable.(my_field).euler_rate(3) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3)]];
-                    data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(3) variable.(my_field).euler(2) variable.(my_field).euler(1) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) variable.(my_field).acc(1) variable.(my_field).acc(2) variable.(my_field).acc(3) log_bod_rates log_thrust log_head]];
+                    data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(3) variable.(my_field).euler(2) variable.(my_field).euler(1) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) variable.(my_field).acc(1) variable.(my_field).acc(2) variable.(my_field).acc(3) log_bod_acc log_thrust log_head]];
                     
                 end
             end
@@ -367,7 +372,33 @@ while ishandle(H)
     % true_heading = desired_heading;
     % log_head = true_heading;
 
-    %% Attitude controller
+    %% Collective thrust (can be used to test)
+    % cmd_z = dot(transpose(zd),transpose(a_des)); %% command sent to motor, need to include filter to make sure negative cmds dun go thru
+    cmd_z = dot(transpose(zd_z),transpose(a_des_z)); %% command sent to motor, need to include filter to make sure negative cmds dun go thru
+    rho = 1.225;
+    radius = 0.61;
+    cl = 0.11 * mea_bod_pitch_deg; % gradient for cl taken from naca 0006, pitch must be in deg
+    cd = 0.023 * mea_bod_pitch_deg; % gradient for cd taken from naca 0006, pitch must be in deg
+    chord_length = 0.1;
+    mass = 0.16;
+    Fz_wo_mass = -1*(cl*rho*chord_length*(radius^3))/(6*mass);
+    Fd_wo_mass = 1*(cd*rho*chord_length*(radius^3))/(6*mass);
+    omega_z = cmd_z/(Fz_wo_mass + Fd_wo_mass); % omega z as motor input
+    %omega_z = sqrt(cmd_z/(Fz_wo_mass + Fd_wo_mass)); % omega z for body rotation rate
+    
+    % (INDI Component for Collective Thrust) %%% continue from here
+    % omega_z = omega_z - abs(body_frame_angular_rate(3,1)); % this is for body rotation which we aint doing this time round
+    omega_z = omega_z/kt; % this is for motor input where kt*omega_z as in the paper
+
+    % omega_z = 0.05*omega_z;
+    if omega_z > 0.7
+        omega_z = 0.7;
+    end
+    log_thrust = omega_z;
+    %fprintf('Desired (%d) vs Actual (%d)', counter_des, counter_actl);
+    fprintf('Omega z is : %d', omega_z);
+
+    %% 1. Attitude controller
     zd = a_des / norm(a_des); % consists of all 3 axis, this was segregated due to collective and cyclic thrust decoupling  
     zd_z = a_des_z / norm(a_des_z); % 3 x 1 = z_desired, if empty it would be 0 0 1 
     
@@ -388,67 +419,38 @@ while ishandle(H)
     else
         body_rates = 2 * prp.* error_quat(:,2:3);
     end
-    
+
 %     disp("body_rates");
 %     disp(body_rates);
 
-    %% Collective thrust (can be used to test)
-    % cmd_z = dot(transpose(zd),transpose(a_des)); %% command sent to motor, need to include filter to make sure negative cmds dun go thru
-    cmd_z = dot(transpose(zd_z),transpose(a_des_z)); %% command sent to motor, need to include filter to make sure negative cmds dun go thru
-    rho = 1.225;
-    radius = 0.61;
-    cl = 0.11 * mea_bod_pitch_deg; % gradient for cl taken from naca 0006, pitch must be in deg
-    cd = 0.023 * mea_bod_pitch_deg; % gradient for cd taken from naca 0006, pitch must be in deg
-    chord_length = 0.1;
-    mass = 0.16;
-    Fz_wo_mass = 1*(cl*rho*chord_length*(radius^3))/(6*mass);
-    Fd_wo_mass = -1*(cd*rho*chord_length*(radius^3))/(6*mass);
-    omega_z = sqrt(cmd_z/(Fz_wo_mass + Fd_wo_mass)); % omega z as motor input
-    
-    % (INDI Component for Collective Thrust) %%% continue from here
-    omega_z = omega_z - abs(body_frame_angular_rate(3,1));
+    cmd_att = kpa.*([body_rates(1,1);body_rates(1,2);0]/3); % rp - wy, wx for moving along x y, want to compare purely against this need to switch to /1
 
-    % omega_z = 0.05*omega_z;
-    if omega_z > 0.7
-        omega_z = 0.7;
-    end
-    log_thrust = omega_z;
-    %fprintf('Desired (%d) vs Actual (%d)', counter_des, counter_actl);
-    fprintf('Omega z is : %d', omega_z);
+    %% 2. Diff Flat Feedforward component (for jerk) 20 21 22 is jerk xyz 
 
-    % left off here, attitude controller ends here...
-    %% Diff Flat Feedforward component (actual)
-    % ff_n = (derivatives(4,i) + linear_drag_coeff(:,1)*derivatives(3,i));
-    % v = [derivatives(4,i),0,0];
-    % ff_d = cmd_z + linear_drag_coeff(:,1)*dot(zd,v) + linear_drag_coeff(:,1)*dot(ex,v) - linear_drag_coeff(:,3)*dot(zd,v);
-    % if ff_d == 0
-    %     body_rate_ref = 0;
-    % else
-    %     body_rate_ref = ff_n/ff_d;
-    % end
+    % Jerk
+    des_jerk_to_ang_rates = [derivatives(20,i)/(-1*cmd_z);derivatives(21,i)/cmd_z;0]; % rp - wy, wx for moving along x y 
+    cmd_bod_rate = kpr.*((des_jerk_to_ang_rates - mea_angular_rate)/3);
+
+    %% 3. Diff Flat Feedforward component (for snap) 23 24 25 is snap xyz
+
+    % Snap
+    ff_snap = [derivatives(23,i)/(-1*cmd_z);derivatives(24,i)/cmd_z;0]/3; % rp - wy, wx for moving along x y 
     
-    %% testing
-    % body_rate_ref = 0;
+    %% 4. Angular acc combine all 3
+    cmd_bod_acc = (cmd_att + cmd_bod_rate + ff_snap); % reverted (now bod rate ref is separate from the gain) gain for cyclic, multiply this to azimuth sin or cos from quadrant, the other value is the desired heading
     
-%     if i > 561 && i < 1130
-%         ppq = 0.07;
-%     else 
-%         ppq = 0.07;
-%     end
-   
-    %% inclusion of diff flatness component
-    cmd_bodyrate = ppq * (body_rates(:,2) - mea_pitch_rate + body_rate_ref); % reverted (now bod rate ref is separate from the gain) gain for cyclic, multiply this to azimuth sin or cos from quadrant, the other value is the desired heading
-    
-    % (INDI Component for body rates) -- cont tmr...needa include j = moment of inertia
+    % (INDI Component for body ang acc) - needa include j = moment of inertia
+    cmd_bod_acc = kpang.*(cmd_bod_acc - mea_angular_rate_rate);
+    cmd_bod_acc = I*cmd_bod_acc; %% cont tmr...
+    log_bod_acc = cmd_bod_acc;
+
     % cmd_bodyrate = flap_feedback + j*cmd_bodyrate;
-    
-    log_bod_rates = cmd_bodyrate;
-
+        
 %     bod_rate_cap = 0.117;
 %     if abs(cmd_bodyrate) > bod_rate_cap
 %         cmd_bodyrate = 0.117;
 %     end    
-    %desired_heading = 0;
+    desired_heading = 0; % cos fixed heading
     desired_heading = exp.new_heading_input(desired_heading);  
     quadrant = exp.quadrant_output(desired_heading); 
     
@@ -456,8 +458,9 @@ while ishandle(H)
     centri_heading = exp.centrifugal_heading_input(desired_heading);
     centri_quadrant = exp.quadrant_output(centri_heading); 
 
+    %% cont tmr...
     centri_input = exp.flap_output(mea_rotation,centri_quadrant,centri_heading,-1*ppc*abs(cmd_bodyrate));      
-    init_input = exp.flap_output(mea_rotation,quadrant,desired_heading,-1*abs(cmd_bodyrate));   % -1 for pitching backwards      
+    init_input = exp.flap_output(mea_rotation,quadrant,desired_heading,-1*abs(cmd_bod_acc));   % conservation of angular momentum thats why need -1     
     final_flap_input = deg2rad((centri_input(:,1) + init_input(:,1)) * 25); % tried braking and heading compensation, not very good
     disp("quadrant");
     disp(quadrant);
@@ -468,25 +471,8 @@ while ishandle(H)
 %     trigger = trigger + 1;
 %     if mod(trigger,16) == 0
 
-    %% Disk yawing controller 
-
-    % need to run 2 experiments: 
-    % 1 - static rig to see the efx of increasing counter and the turning rate of the disk
-    % 2 - dynamic experiment to see the efx of it in flight and the real time data achieved
-    % 3 - both will be under the efx of the new changes to pos-mag as well as the bod rate ref being separate from the eqn that has gain ppq
-   
-    r_x = mea_x_pos - center_x;
-    r_y = mea_y_pos - center_y;
-    rad_data = sqrt((r_x).^2 + (r_y).^2) - radius;
-
-
-%     i = i + 50 + (dpp * ceil(rad_data)); % 50 is the number to update
-% 
-%     if i < 5
-%         i = 5;
-%     end
-    i = i + 50; % 50 or 30 is the number to update
-    c = c + 1;
+    %i = i + 50; % 50 or 30 is the number to update
+    %c = c + 1;
 %     end
 %     trigger = trigger + update_rate; % temporary holding
 
