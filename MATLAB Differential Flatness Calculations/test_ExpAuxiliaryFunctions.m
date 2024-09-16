@@ -121,7 +121,7 @@ classdef test_ExpAuxiliaryFunctions
             elseif heading < -pi/2 && heading > -pi
                 quad = 2;
             
-            elseif heading == -pi
+            elseif heading == -pi 
                 quad = 2.5;
             
             elseif heading > pi/2 && heading < pi
@@ -146,7 +146,7 @@ classdef test_ExpAuxiliaryFunctions
         end
 
 
-        function [input] = flap_output(obj, azi, quadrant, desired_heading, body_rate_y)
+        function [input] = flap_output(obj, azi, quadrant, desired_heading, cmd_bod_acc)
             % rmb to put filter to prevent over actuation
             input = zeros(1,2);
             upper_bound = zeros(1,1);
@@ -370,11 +370,11 @@ classdef test_ExpAuxiliaryFunctions
             
             %input(:,1) = pitch * body_rate_y;
             if pitch == 0
-                input(:,1) = pitch * body_rate_y;
+                input(:,1) = pitch * cmd_bod_acc;
             else
-                input(:,1) = pitch/norm(pitch) * body_rate_y; %% testing 
+                input(:,1) = pitch/norm(pitch) * cmd_bod_acc; %% testing 
             end
-            input(:,2) = Motor_Pulse;
+            input(:,2) = Motor_Pulse; % input = zeros(1,2);
             
         end
 

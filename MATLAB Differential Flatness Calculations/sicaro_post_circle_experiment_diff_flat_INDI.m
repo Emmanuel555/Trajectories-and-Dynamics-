@@ -9,7 +9,7 @@ hz = 60; % original value here was 300; % 100 hz for optitrack, matlab rate is a
 rate= 1/hz; % in 1/Hz, how fast the graph updates in terms of period (time)
 bodyname=["gp"]; % multiple bodies allowed
 %data_arr=["Mtime","Otime","name","x","y","z","qx","qy","qz","qw","euy","eup","eur","eury","eurp","eurr","vx","vy", "vz","pitch_norm"]; % Array to store to excel
-data_arr=["Mtime","Otime","name","x","y","z","euy","eup","eur","vx","vy","vz","ax","ay","az","bod_rates","thrust","heading"]; % Array to store to excel
+data_arr=["Mtime","Otime","name","x","y","z","euy","eup","eur","vx","vy","vz","ax","ay","az","bod_ang_acc","thrust","heading"]; % Array to store to excel
 
 %% Create OptiTrack object
 obj = OptiTrack;
@@ -106,6 +106,8 @@ kdpos = [1300.0;1300.0;105];
 kpa = [0.4;0.6]; % att p gain - angle 2 x 1
 kpr = [30;30;0]; % bodyrate p gain - jerk 3 x 1
 kpang = [30;30;0]; % bodyangacc p gain - 3 x 1
+kdang = [30;30;0]; % bodyangacc d gain - 3 x 1
+kiang = [30;30;0]; % bodyangacc i gain - 3 x 1
 %kdr = [1;1;1]; % bodyrate d gain - jerk
 ppq = 0.40; % body acc gain
 ppc = 0.10; % centrifugal gain, alternatively, ppc = 1 - ppq
@@ -149,14 +151,16 @@ c = (sample_per_loop * 2) - 0; % counter, used to be -100
 
 % error matrices
 error = zeros(3,1);
+error_ang = zeros(3,1);
 error_past = zeros(3,1);
+error_ang_past = zeros(3,1);
 test = 1;
 old_timestamp = 0;
 
 % Logging
 log_bod_acc = zeros(3,1);
 log_head = 0;
-log_thrust = 0;
+log_motor_input = 0;
 
 p_array = [];
 t_array = [];
@@ -203,7 +207,7 @@ while ishandle(H)
                     old_timestamp = rb(k).TimeStamp; 
 %                     disp(rad2deg(variable.("gp").euler));
 %                   data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).quarternion(1) variable.(my_field).quarternion(2) variable.(my_field).quarternion(3) variable.(my_field).quarternion(4) variable.(my_field).euler(1) variable.(my_field).euler(2) variable.(my_field).euler(3) variable.(my_field).euler_rate(1) variable.(my_field).euler_rate(2) variable.(my_field).euler_rate(3) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3)]];
-                    data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(3) variable.(my_field).euler(2) variable.(my_field).euler(1) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) variable.(my_field).acc(1) variable.(my_field).acc(2) variable.(my_field).acc(3) log_bod_acc log_thrust log_head]];
+                    data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(3) variable.(my_field).euler(2) variable.(my_field).euler(1) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) variable.(my_field).acc(1) variable.(my_field).acc(2) variable.(my_field).acc(3) log_bod_acc log_motor_input]];
                     
                 end
             end
@@ -394,7 +398,7 @@ while ishandle(H)
     if omega_z > 0.7
         omega_z = 0.7;
     end
-    log_thrust = omega_z;
+    log_motor_input = omega_z;
     %fprintf('Desired (%d) vs Actual (%d)', counter_des, counter_actl);
     fprintf('Omega z is : %d', omega_z);
 
@@ -438,46 +442,51 @@ while ishandle(H)
     
     %% 4. Angular acc combine all 3
     cmd_bod_acc = (cmd_att + cmd_bod_rate + ff_snap); % reverted (now bod rate ref is separate from the gain) gain for cyclic, multiply this to azimuth sin or cos from quadrant, the other value is the desired heading
-    
+    %cmd_bod_acc = (cmd_att);
+
     % (INDI Component for body ang acc) - needa include j = moment of inertia
-    cmd_bod_acc = kpang.*(cmd_bod_acc - mea_angular_rate_rate);
+    error_ang = cmd_bod_acc - mea_angular_rate_rate;
+    cmd_bod_acc = kpang.*error_ang + kdang.*(error_ang-error_ang_past);
     cmd_bod_acc = I*cmd_bod_acc; %% cont tmr...
     log_bod_acc = cmd_bod_acc;
-
+    error_ang_past = error_ang;
     % cmd_bodyrate = flap_feedback + j*cmd_bodyrate;
         
-%     bod_rate_cap = 0.117;
-%     if abs(cmd_bodyrate) > bod_rate_cap
-%         cmd_bodyrate = 0.117;
-%     end    
-    desired_heading = 0; % cos fixed heading
-    desired_heading = exp.new_heading_input(desired_heading);  
-    quadrant = exp.quadrant_output(desired_heading); 
+    %     bod_rate_cap = 0.117;
+    %     if abs(cmd_bodyrate) > bod_rate_cap
+    %         cmd_bodyrate = 0.117;
+    %     end  
+
+    %% Pitch
+    desired_pitch_heading = pi/2; % pi/2 heading is facing forward
+    desired_pitch_heading = exp.new_heading_input(desired_pitch_heading); % to account for phase delay 
+    quadrant_pitch = exp.quadrant_output(desired_pitch_heading); 
     
-    %% centrifugal force compensation
-    centri_heading = exp.centrifugal_heading_input(desired_heading);
-    centri_quadrant = exp.quadrant_output(centri_heading); 
+    %% Roll
+    desired_roll_heading = pi; % pi/2 heading is facing forward
+    desired_roll_heading = exp.new_heading_input(desired_roll_heading); % to account for phase delay 
+    quadrant_roll = exp.quadrant_output(desired_roll_heading); 
 
-    %% cont tmr...
-    centri_input = exp.flap_output(mea_rotation,centri_quadrant,centri_heading,-1*ppc*abs(cmd_bodyrate));      
-    init_input = exp.flap_output(mea_rotation,quadrant,desired_heading,-1*abs(cmd_bod_acc));   % conservation of angular momentum thats why need -1     
-    final_flap_input = deg2rad((centri_input(:,1) + init_input(:,1)) * 25); % tried braking and heading compensation, not very good
-    disp("quadrant");
-    disp(quadrant);
-    disp("heading");
-    disp(true_heading);
-
+    %% Flap inputs
+    %centri_input = exp.flap_output(mea_rotation,centri_quadrant,centri_heading,-1*ppc*abs(cmd_bodyrate));      
+    %init_input = exp.flap_output(mea_rotation,quadrant,desired_heading,-1*abs(cmd_bod_acc));% conservation of angular momentum thats why need -1     
+    
+    pitch_input = exp.flap_output(mea_rotation,quadrant_pitch,desired_pitch_heading,-1*cmd_bod_acc(2,1));% conservation of angular momentum thats why need -1     
+    roll_input = exp.flap_output(mea_rotation,quadrant_roll,desired_roll_heading,-1*cmd_bod_acc(1,1));% conservation of angular momentum thats why need -1  
+        
+    final_flap_input = deg2rad((pitch_input(:,1) + roll_input(:,1)) * 25); % tried braking and heading compensation, not very good
+  
     %% trigger
-%     trigger = trigger + 1;
-%     if mod(trigger,16) == 0
-
-    %i = i + 50; % 50 or 30 is the number to update
-    %c = c + 1;
-%     end
-%     trigger = trigger + update_rate; % temporary holding
+    %     trigger = trigger + 1;
+    %     if mod(trigger,16) == 0
+    
+        %i = i + 50; % 50 or 30 is the number to update
+        %c = c + 1;
+    %     end
+    %     trigger = trigger + update_rate; % temporary holding
 
     
-    input = [true_heading,final_flap_input,cmd_z,mea_rotation]; % heading, flap, motor, yaw
+    input = [0,final_flap_input,omega_z,mea_rotation]; % heading, flap, motor, yaw
     fprintf('Input [%f,%f,%f]\n', input);
     disp("counter");
     disp(i);
