@@ -398,7 +398,27 @@ classdef test_ExpAuxiliaryFunctions
         end
 
 
-        function [mag] = circle_setpoints_anti_cw(obj,speed,x_rad,y_rad,r,hz)    
+        function [mag] = trochoid(obj,x,y,r)
+            % hold on
+            x_origin = x;
+            y_origin = y;
+            radius = r;
+            %th = 0:pi/50:2*pi; % 100 pts
+            th = 0:pi/4:2*pi; % 8 pts
+            xunit = radius * cos(th) + x_origin;
+            yunit = radius * sin(th) + y_origin;
+            z = ones([size(xunit)]);
+            %overall = plot3(xunit, yunit, z, "red",'LineWidth',5);
+            %xlabel('X')
+            %ylabel('Y')
+            %ylabel('Z')
+            %axis equal
+            % hold off
+        end
+
+
+
+        function [mag] = circle_setpoints_anti_cw(obj,speed,x_rad,y_rad,r,hz,rotation)    
             %CIRCLE
             x_origin = x_rad;
             y_origin = y_rad;
@@ -406,7 +426,11 @@ classdef test_ExpAuxiliaryFunctions
             radius = r;
             %th = 0:pi/50:2*pi; % 100 pts
             th = 0:pi/4:2*pi; % 8 pts
-            x = radius * cos(th) + x_origin;
+            if rotation == "cc"
+                x = x_origin - radius * cos(th); % fly the other direction only needa change this 
+            else
+                x = radius * cos(th) + x_origin; 
+            end
             y = radius * sin(th) + y_origin;
             z = radius * sin(th) + z_origin;
            
