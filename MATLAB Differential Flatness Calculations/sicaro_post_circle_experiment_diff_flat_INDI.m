@@ -86,7 +86,12 @@ inverted_body_frame_angular_rate = zeros(3,1); % inverted body frame angular rat
 inverted_body_frame_angular_rate_rate = zeros(3,1); % inverted body frame angular rate rate
 
 mea_xyz_pos_mag = zeros(3,1);
-mea_xyz_pos_past = [mid_x + radius; mid_y; 0];
+
+if monocopter_rotation == "cc"
+    mea_xyz_pos_past = [mid_x - radius; mid_y; 0];
+else
+    mea_xyz_pos_past = [mid_x + radius; mid_y; 0];
+end
 mea_xyz_vel_past = zeros(3,1);
 mea_xyz_acc_past = zeros(3,1);
 mea_disk_yaw_rate = zeros(1,1);
@@ -146,7 +151,7 @@ body_rates = zeros(1,2);
 update_rate = derivatives(7,1);
 
 % points per loop
-sample_per_loop = derivatives(10,1);
+sample_per_loop = derivatives(10,2);
 i = (sample_per_loop * 2) - 0; % counter, used to be -100
 c = (sample_per_loop * 2) - 0; % counter, used to be -100
 
@@ -242,8 +247,8 @@ while ishandle(H)
     inertia_frame_angular_rate_rate = transpose(variable.gp.euler_rate_rate); % % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
     
     %% Body
-    phi = inertia_frame_angles(1,1); % roll - from inertia eul_xyz(2) about y, body pitch
-    theta = inertia_frame_angles(2,1); % pitch - from inertia eul_xyz(1) about x, body roll, body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
+    phi = inertia_frame_angles(1,1); % _| roll - from inertia eul_xyz(2) about y, body pitch
+    theta = inertia_frame_angles(2,1); % _| pitch - from inertia eul_xyz(1) about x, body roll, body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
 
     W = [ 1,  0,        -sin(theta);
           0,  cos(phi),  cos(theta)*sin(phi);
@@ -287,6 +292,9 @@ while ishandle(H)
         mea_angular_rate_rate(1,1) = body_frame_angular_rate_rate(2,1);
         mea_precession_angle(2,1) = mea_angular_rate_rate(1,1)/body_frame_angular_rate(3,1);
     end
+
+
+
 
     
     %position assignment

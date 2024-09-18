@@ -398,22 +398,118 @@ classdef test_ExpAuxiliaryFunctions
         end
 
 
-        function [mag] = trochoid(obj,x,y,r)
-            % hold on
-            x_origin = x;
-            y_origin = y;
-            radius = r;
-            %th = 0:pi/50:2*pi; % 100 pts
-            th = 0:pi/4:2*pi; % 8 pts
-            xunit = radius * cos(th) + x_origin;
-            yunit = radius * sin(th) + y_origin;
-            z = ones([size(xunit)]);
-            %overall = plot3(xunit, yunit, z, "red",'LineWidth',5);
-            %xlabel('X')
-            %ylabel('Y')
-            %ylabel('Z')
-            %axis equal
-            % hold off
+        function [mag] = trochoid_cw(obj,speed)
+            % waypoints
+            angle = 0:deg2rad(-45):-4*pi; % go from right to left, cw rotation from monocopter
+            a = 0.25;
+            b = a+0.15;
+            x = ((a*angle) - b*sin(angle))+4; 
+            y = (a - b*cos(angle))+2.5; 
+           
+            x = x(1,2:16);
+            y = y(1,2:16);
+            bx = -x+4.85; 
+            by = -y+4.7;
+            
+            col = size(x);
+            col = col(1,2);
+        
+            % min snap
+            t_wpts_xy = [x bx x bx;y by y by]; % repeats for 4 times to ensure smoothness but we only take the middle points
+            % tpts = 0:5;
+            
+            r = 0.5;
+            omega = speed / r; % 1 m/s = 1 rad/s based on v = r*omega
+            % time_per_eigth = (pi/4)/speed; 
+            % sample_per_loop = 100;
+            % time_per_setpt = (time_per_eigth * 8) / sample_per_loop; 
+            
+            time_per_seg = ((2*pi)/col)/omega; % 0.784
+            circle_tpts = 0:time_per_seg:time_per_seg*col*4; % intervals @ 1 m/s = 1 rad/s based on v = r*omega
+            circle_tpts = circle_tpts(1,1:col*4);
+            % hz = 100;
+            hz = 60; % default is 300
+            time_per_setpt = 1/hz;
+            sample_per_loop = (time_per_seg * col) / time_per_setpt;  % 2258
+            sample_per_loop = ceil(sample_per_loop);
+            laps = 2;
+            numsamples = sample_per_loop*2*laps;
+            
+            [t_xy,t_xyd,t_xydd,t_xyddd,t_xydddd,t_xypp,t_xytimepoints,t_xytsamples] = minsnappolytraj(t_wpts_xy ,circle_tpts,numsamples);
+            t_final_pose = zeros(2,numsamples);
+            t_final_vel = zeros(2,numsamples);
+            t_final_acc = zeros(2,numsamples);
+            t_final_jerk = zeros(2,numsamples);
+            t_final_snap = zeros(2,numsamples);
+            
+            for v = 1:2
+                t_final_pose(v,:) = t_xy(v,:);
+                t_final_vel(v,:) = t_xyd(v,:);
+                t_final_acc(v,:) = t_xydd(v,:);
+                t_final_jerk(v,:) = t_xyddd(v,:);
+                t_final_snap(v,:) = t_xydddd(v,:);
+            end
+
+            
+            diff_pos = zeros(2,(numsamples));
+            
+            for v = 1:2
+                for i = 2:numsamples
+                    diff_pos(v,i) = t_final_pose(v,i) - t_final_pose(v,i-1); 
+                    % d_bx(1,i-1) = bx(:,i) - bx(:,i-1); 
+                    % d_by(1,i-1) = by(:,i) - by(:,i-1);  
+                end
+            end
+            
+            direction = atan2(diff_pos(2,:),diff_pos(1,:)); % this atan2 doesnt describe the angle, rather it describes where the adjacent axis would point 
+            direction_deg = rad2deg(direction);
+            
+            % b_direction = atan2(d_by,d_bx); % this atan2 doesnt describe the angle, rather it describes where the adjacent axis would point 
+            % b_direction_deg = rad2deg(b_direction);
+            
+            diff_rad = zeros(1,numsamples-2);
+            diff_deg = zeros(1,numsamples-2);
+            
+            % b_diff_rad = zeros(1,sample_per_loop-2);
+            % b_diff_deg = zeros(1,sample_per_loop-2);
+            
+            for i = 2:numsamples-1
+                diff_rad(1,i-1) = (direction(1,i) - direction(1,i-1))/(time_per_setpt);
+                diff_deg(1,i-1) = (direction_deg(1,i) - direction_deg(1,i-1))/(time_per_setpt);
+                % b_diff_rad(1,i-1) = (b_direction(1,i) - b_direction(1,i-1))/(time_per_setpt);
+                % b_diff_deg(1,i-1) = (b_direction_deg(1,i) - b_direction_deg(1,i-1))/(time_per_setpt);
+            end
+
+            %cont tmr...
+            
+            mag(6,:) = direction; %direction
+            mag(7,1) = time_per_setpt; %update rate
+            mag(8,1:9) = x; 
+            mag(9,:) = direction_deg; %direction
+            mag(10,1) = sample_per_loop;
+            mag(10,2) = (sample_per_loop*2); % number of points ran in this function
+            mag(11,:) = invert_pos(1,1:sample_per_loop*2); % x
+            mag(12,:) = invert_pos(2,1:sample_per_loop*2); % y
+            mag(13,:) = invert_pos(3,1:sample_per_loop*2); % z
+            mag(14,:) = invert_vel(1,1:sample_per_loop*2); % x
+            mag(15,:) = invert_vel(2,1:sample_per_loop*2); % y
+            mag(16,:) = invert_vel(3,1:sample_per_loop*2); % z
+            mag(17,:) = invert_acc(1,1:sample_per_loop*2); % x
+            mag(18,:) = invert_acc(2,1:sample_per_loop*2); % y
+            mag(19,:) = invert_acc(3,1:sample_per_loop*2); % z
+            mag(20,:) = invert_jer(1,1:sample_per_loop*2); % x
+            mag(21,:) = invert_jer(2,1:sample_per_loop*2); % y
+            mag(22,:) = invert_jer(3,1:sample_per_loop*2); % z
+            mag(23,:) = invert_sna(1,1:sample_per_loop*2); % x
+            mag(24,:) = invert_sna(2,1:sample_per_loop*2); % y
+            mag(25,:) = invert_sna(3,1:sample_per_loop*2); % z
+            mag(26,1:(sample_per_loop*2)-1) = diff_rad(1,:); % rad/s
+            mag(27,1:(sample_per_loop*2)-1) = diff_deg(1,:); % deg/s
+            mag(28,1:(sample_per_loop*2)-2) = diff_diff_rad(1,:); % rad/s/s
+            mag(29,1:(sample_per_loop*2)-2) = diff_diff_deg(1,:); % deg/s/s
+            %circle_xy(2,1:1130)
+            
+       
         end
 
 
