@@ -398,24 +398,36 @@ classdef test_ExpAuxiliaryFunctions
         end
 
 
-        function [mag] = trochoid_cw(obj,speed)
+        function [mag] = trochoid(obj,speed,rotation)
             % waypoints
             angle = 0:deg2rad(-45):-4*pi; % go from right to left, cw rotation from monocopter
             a = 0.25;
             b = a+0.15;
             x = ((a*angle) - b*sin(angle))+4; 
             y = (a - b*cos(angle))+2.5; 
+            inv_x = flip(x,2);
+            z = linspace(1.5,2.5,8);
+            inv_z = flip(z,2);
+            z = cat(2,z,inv_z(1,2:8));
            
-            x = x(1,2:16);
-            y = y(1,2:16);
-            bx = -x+4.85; 
-            by = -y+4.7;
+            if rotation == "c"
+                x = x(1,2:16);
+                y = y(1,2:16);
+                bx = -x+4.85; 
+                by = -y+4.7;
+            else 
+                x = inv_x(1,2:16);
+                y = y(1,2:16);
+                bx = -x+4.85; 
+                by = -y+4.7;
+            end
             
             col = size(x);
             col = col(1,2);
         
             % min snap
             t_wpts_xy = [x bx x bx;y by y by]; % repeats for 4 times to ensure smoothness but we only take the middle points
+            t_wpts_xz = [x bx x bx;z z z z];
             % tpts = 0:5;
             
             r = 0.5;
@@ -436,11 +448,12 @@ classdef test_ExpAuxiliaryFunctions
             numsamples = sample_per_loop*2*laps;
             
             [t_xy,t_xyd,t_xydd,t_xyddd,t_xydddd,t_xypp,t_xytimepoints,t_xytsamples] = minsnappolytraj(t_wpts_xy ,circle_tpts,numsamples);
-            t_final_pose = zeros(2,numsamples);
-            t_final_vel = zeros(2,numsamples);
-            t_final_acc = zeros(2,numsamples);
-            t_final_jerk = zeros(2,numsamples);
-            t_final_snap = zeros(2,numsamples);
+            [t_xz,t_xzd,t_xzdd,t_xzddd,t_xzdddd,t_xzpp,t_xztimepoints,t_xztsamples] = minsnappolytraj(t_wpts_xz ,circle_tpts,numsamples);
+            t_final_pose = zeros(3,numsamples);
+            t_final_vel = zeros(3,numsamples);
+            t_final_acc = zeros(3,numsamples);
+            t_final_jerk = zeros(3,numsamples);
+            t_final_snap = zeros(3,numsamples);
             
             for v = 1:2
                 t_final_pose(v,:) = t_xy(v,:);
@@ -450,7 +463,12 @@ classdef test_ExpAuxiliaryFunctions
                 t_final_snap(v,:) = t_xydddd(v,:);
             end
 
-            
+            t_final_pose(3,:) = t_xz(2,:);
+            t_final_vel(3,:) = t_xzd(2,:);
+            t_final_acc(3,:) = t_xzdd(2,:);
+            t_final_jerk(3,:) = t_xzddd(2,:);
+            t_final_snap(3,:) = t_xzdddd(2,:);
+
             diff_pos = zeros(2,(numsamples));
             
             for v = 1:2
@@ -479,34 +497,32 @@ classdef test_ExpAuxiliaryFunctions
                 % b_diff_rad(1,i-1) = (b_direction(1,i) - b_direction(1,i-1))/(time_per_setpt);
                 % b_diff_deg(1,i-1) = (b_direction_deg(1,i) - b_direction_deg(1,i-1))/(time_per_setpt);
             end
-
-            %cont tmr...
-            
+  
             mag(6,:) = direction; %direction
             mag(7,1) = time_per_setpt; %update rate
-            mag(8,1:9) = x; 
+            % mag(8,1:9) = x; 
             mag(9,:) = direction_deg; %direction
-            mag(10,1) = sample_per_loop;
-            mag(10,2) = (sample_per_loop*2); % number of points ran in this function
-            mag(11,:) = invert_pos(1,1:sample_per_loop*2); % x
-            mag(12,:) = invert_pos(2,1:sample_per_loop*2); % y
-            mag(13,:) = invert_pos(3,1:sample_per_loop*2); % z
-            mag(14,:) = invert_vel(1,1:sample_per_loop*2); % x
-            mag(15,:) = invert_vel(2,1:sample_per_loop*2); % y
-            mag(16,:) = invert_vel(3,1:sample_per_loop*2); % z
-            mag(17,:) = invert_acc(1,1:sample_per_loop*2); % x
-            mag(18,:) = invert_acc(2,1:sample_per_loop*2); % y
-            mag(19,:) = invert_acc(3,1:sample_per_loop*2); % z
-            mag(20,:) = invert_jer(1,1:sample_per_loop*2); % x
-            mag(21,:) = invert_jer(2,1:sample_per_loop*2); % y
-            mag(22,:) = invert_jer(3,1:sample_per_loop*2); % z
-            mag(23,:) = invert_sna(1,1:sample_per_loop*2); % x
-            mag(24,:) = invert_sna(2,1:sample_per_loop*2); % y
-            mag(25,:) = invert_sna(3,1:sample_per_loop*2); % z
-            mag(26,1:(sample_per_loop*2)-1) = diff_rad(1,:); % rad/s
-            mag(27,1:(sample_per_loop*2)-1) = diff_deg(1,:); % deg/s
-            mag(28,1:(sample_per_loop*2)-2) = diff_diff_rad(1,:); % rad/s/s
-            mag(29,1:(sample_per_loop*2)-2) = diff_diff_deg(1,:); % deg/s/s
+            mag(10,1) = sample_per_loop*2;
+            mag(10,2) = (numsamples); % number of points ran in this function laps = 2; numsamples = sample_per_loop*2*laps
+            mag(11,:) = t_final_pose(1,1:numsamples); % x
+            mag(12,:) = t_final_pose(2,1:numsamples); % y
+            mag(13,:) = t_final_pose(3,1:numsamples); % z
+            mag(14,:) = t_final_vel(1,1:numsamples); % x
+            mag(15,:) = t_final_vel(2,1:numsamples); % y
+            mag(16,:) = t_final_vel(3,1:numsamples); % z
+            mag(17,:) = t_final_acc(1,1:numsamples); % x
+            mag(18,:) = t_final_acc(2,1:numsamples); % y
+            mag(19,:) = t_final_acc(3,1:numsamples); % z
+            mag(20,:) = t_final_jerk(1,1:numsamples); % x
+            mag(21,:) = t_final_jerk(2,1:numsamples); % y
+            mag(22,:) = t_final_jerk(3,1:numsamples); % z
+            mag(23,:) = t_final_snap(1,1:numsamples); % x
+            mag(24,:) = t_final_snap(2,1:numsamples); % y
+            mag(25,:) = t_final_snap(3,1:numsamples); % z
+            mag(26,1:(numsamples)-1) = diff_rad(1,:); % rad/s
+            mag(27,1:(numsamples)-1) = diff_deg(1,:); % deg/s
+            %mag(28,1:(numsamples)-2) = diff_diff_rad(1,:); % rad/s/s
+            %mag(29,1:(numsamples)-2) = diff_diff_deg(1,:); % deg/s/s
             %circle_xy(2,1:1130)
             
        
@@ -573,18 +589,19 @@ classdef test_ExpAuxiliaryFunctions
             % final_z_snap = zydddd(1,101:300);
             
             for v = 1:2
-                circle_final_pose(v,:) = circle_xy(v,sample_per_loop+1:(sample_per_loop*3)+1);
-                circle_final_vel(v,:) = circle_xyd(v,sample_per_loop+1:(sample_per_loop*3)+1);
-                circle_final_acc(v,:) = circle_xydd(v,sample_per_loop+1:(sample_per_loop*3)+1);
-                circle_final_jerk(v,:) = circle_xyddd(v,sample_per_loop+1:(sample_per_loop*3)+1);
-                circle_final_snap(v,:) = circle_xydddd(v,sample_per_loop+1:(sample_per_loop*3)+1);
+                % circle_final_pose(v,:) = circle_xy(v,sample_per_loop+1:(sample_per_loop*3)+1); % prev
+                circle_final_pose(v,:) = circle_xy(v,1:(sample_per_loop*2)+1);
+                circle_final_vel(v,:) = circle_xyd(v,1:(sample_per_loop*2)+1);
+                circle_final_acc(v,:) = circle_xydd(v,1:(sample_per_loop*2)+1);
+                circle_final_jerk(v,:) = circle_xyddd(v,1:(sample_per_loop*2)+1);
+                circle_final_snap(v,:) = circle_xydddd(v,1:(sample_per_loop*2)+1);
             end
 
-            circle_final_pose(3,:) = circle_xz(2,sample_per_loop+1:(sample_per_loop*3)+1);
-            circle_final_vel(3,:) = circle_xzd(2,sample_per_loop+1:(sample_per_loop*3)+1);
-            circle_final_acc(3,:) = circle_xzdd(2,sample_per_loop+1:(sample_per_loop*3)+1);
-            circle_final_jerk(3,:) = circle_xzddd(2,sample_per_loop+1:(sample_per_loop*3)+1);
-            circle_final_snap(3,:) = circle_xzdddd(2,sample_per_loop+1:(sample_per_loop*3)+1);
+            circle_final_pose(3,:) = circle_xz(2,1:(sample_per_loop*2)+1);
+            circle_final_vel(3,:) = circle_xzd(2,1:(sample_per_loop*2)+1);
+            circle_final_acc(3,:) = circle_xzdd(2,1:(sample_per_loop*2)+1);
+            circle_final_jerk(3,:) = circle_xzddd(2,1:(sample_per_loop*2)+1);
+            circle_final_snap(3,:) = circle_xzdddd(2,1:(sample_per_loop*2)+1);
             
             % because the above solution starts from the same point but moves in a
             % clockwise fashion as compared to what I wanted which was anti-clockwise

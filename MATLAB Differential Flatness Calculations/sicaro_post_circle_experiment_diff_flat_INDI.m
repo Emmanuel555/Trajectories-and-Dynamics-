@@ -151,9 +151,10 @@ body_rates = zeros(1,2);
 update_rate = derivatives(7,1);
 
 % points per loop
-sample_per_loop = derivatives(10,2);
-i = (sample_per_loop * 2) - 0; % counter, used to be -100
-c = (sample_per_loop * 2) - 0; % counter, used to be -100
+sample_per_loop = derivatives(10,1);
+ref_counter = 1;
+i = 1; % counter, used to be -100
+c = 1; % counter, used to be -100
 
 % error matrices
 error = zeros(3,1);
@@ -292,10 +293,6 @@ while ishandle(H)
         mea_angular_rate_rate(1,1) = body_frame_angular_rate_rate(2,1);
         mea_precession_angle(2,1) = mea_angular_rate_rate(1,1)/body_frame_angular_rate(3,1);
     end
-
-
-
-
     
     %position assignment
     % mea_pos(1,:) is tangent to wall (X) and mea_pos(2,:) is along wall (Y) -- updated 
@@ -324,9 +321,9 @@ while ishandle(H)
     
 %%  reset
  
-    if i > sample_per_loop*2
-        i = 1;
-        c = 1;
+    if ref_counter == sample_per_loop*2
+        i = sample_per_loop;
+        c = sample_per_loop;
     end 
    
     %%%% (Test)
@@ -489,11 +486,19 @@ while ishandle(H)
     %     trigger = trigger + 1;
     %     if mod(trigger,16) == 0
     
-        %i = i + 50; % 50 or 30 is the number to update
-        %c = c + 1;
+    %i = i + 50; % 50 or 30 is the number to update
+    %c = c + 1;
     %     end
     %     trigger = trigger + update_rate; % temporary holding
 
+    if ref_counter == sample_per_loop*2
+        ref_counter = ref_counter*1;
+    elseif ref_counter < sample_per_loop*2
+        ref_counter = ref_counter + 1;
+    end
+        
+    i = i + 1; % 50 or 30 is the number to update
+    c = c + 1;
     
     input = [0,final_flap_input,omega_z,mea_rotation]; % heading, flap, motor, yaw
     fprintf('Input [%f,%f,%f]\n', input);
