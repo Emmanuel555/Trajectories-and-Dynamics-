@@ -9,7 +9,7 @@ hz = 60; % original value here was 300; % 100 hz for optitrack, matlab rate is a
 rate= 1/hz; % in 1/Hz, how fast the graph updates in terms of period (time)
 bodyname=["gp"]; % multiple bodies allowed
 %data_arr=["Mtime","Otime","name","x","y","z","qx","qy","qz","qw","euy","eup","eur","eury","eurp","eurr","vx","vy", "vz","pitch_norm"]; % Array to store to excel
-data_arr=["Mtime","Otime","name","x","y","z","euy","eup","eur","vx","vy","vz","ax","ay","az","bod_ang_acc","thrust","heading"]; % Array to store to excel
+data_arr=["Mtime","Otime","name","x","y","z","euy","eup","eur","vx","vy","vz","ax","ay","az","bod_ang_acc","thrust","no. of laps"]; % Array to store to excel
 
 %% Create OptiTrack object
 obj = OptiTrack;
@@ -50,6 +50,7 @@ mid_y = 2.0;
 radius = 0.5;
 speed = 1.5;
 monocopter_rotation = "c";
+z_enabled = "n"; 
 derivatives = exp.circle_setpoints_anti_cw(speed,mid_x,mid_y,radius,hz,monocopter_rotation); % circle anti_cw setpoints, radius 0.5, speed 0.5
 % derivatives = exp.circle_setpoints_cw(1,-2,2,1); % circle cw setpoints
 
@@ -59,8 +60,7 @@ derivatives = exp.circle_setpoints_anti_cw(speed,mid_x,mid_y,radius,hz,monocopte
 % sna = load("invert_sna.mat");
 
 
-%%% step 1 - attitude control:
-%%  assign the heading at the period of the time interval which is pi/50 
+%%  Collective ref assignment wo increments
 %   take in measurements, assume the following for now as pseudo
 opti_offset = 0.5; % original was 0.5
 ideal_hgt = 1.5;
@@ -168,6 +168,7 @@ old_timestamp = 0;
 log_bod_acc = zeros(3,1);
 log_head = 0;
 log_motor_input = 0;
+log_laps = 0;
 
 p_array = [];
 t_array = [];
@@ -214,7 +215,7 @@ while ishandle(H)
                     old_timestamp = rb(k).TimeStamp; 
 %                     disp(rad2deg(variable.("gp").euler));
 %                   data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).quarternion(1) variable.(my_field).quarternion(2) variable.(my_field).quarternion(3) variable.(my_field).quarternion(4) variable.(my_field).euler(1) variable.(my_field).euler(2) variable.(my_field).euler(3) variable.(my_field).euler_rate(1) variable.(my_field).euler_rate(2) variable.(my_field).euler_rate(3) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3)]];
-                    data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(3) variable.(my_field).euler(2) variable.(my_field).euler(1) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) variable.(my_field).acc(1) variable.(my_field).acc(2) variable.(my_field).acc(3) log_bod_acc log_motor_input]];
+                    data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(3) variable.(my_field).euler(2) variable.(my_field).euler(1) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) variable.(my_field).acc(1) variable.(my_field).acc(2) variable.(my_field).acc(3) log_bod_acc log_motor_input log_laps]];
                     
                 end
             end
@@ -259,7 +260,7 @@ while ishandle(H)
     body_frame_angular_rate_rate = W*inertia_frame_angular_rate_rate;
     mea_bod_pitch_deg = rad2deg(-1*phi); % it would be negative y angle pitching up hence the negation 
     mea_rotation = inertia_frame_angles(3,1); % negative
-    J = W.'*I*W; % back portion of the INDI
+    % J = W.'*I*W; % back portion of the INDI
 
     
     %% Disk & Gyro (in the event of we need to invert the craft upside down)
@@ -321,7 +322,7 @@ while ishandle(H)
     
 %%  reset
  
-    if ref_counter == sample_per_loop*2
+    if ref_counter == sample_per_loop
         i = sample_per_loop;
         c = sample_per_loop;
     end 
@@ -349,11 +350,18 @@ while ishandle(H)
     % delta_vel = sqrt((derivatives(14,i) - (mea_vel(1,:))).^2 + (derivatives(15,i) - (mea_vel(2,:))).^2);
     % a_fb_xy = abs((kpos*delta_pos) + (kvel*(delta_vel)));
 
+    if z_enabled == "y"
+        desired_alt = derivatives(13,i);
+        z_cmd_vel_acc = (kvel(3,1)*(derivatives(16,i) - mea_xyz_vel(3,1))) + derivatives(19,i); 
+    else
+        z_cmd_vel_acc = 0;
+    end
+
     error = [derivatives(11,i) - mea_xyz_pos(1,1);derivatives(12,i) - mea_xyz_pos(2,1);mea_xyz_pos(3,1)-desired_alt]; 
     a_rd = [mea_xyz_vel(1,1)*linear_drag_coeff(1,1);mea_xyz_vel(2,1)*linear_drag_coeff(1,2);mea_xyz_vel(3,1)*linear_drag_coeff(1,3)]; 
     a_des(1,:) = (kpos(1,1)*error(1,1)) + (kdpos(1,1)*(error(1,1) - error_past(1,1))) + (kvel(1,1)*(derivatives(14,i) - mea_xyz_vel(1,1))) + derivatives(17,i) - a_rd(1,1); % x
     a_des(2,:) = (kpos(2,1)*error(2,1)) + (kdpos(2,1)*(error(2,1) - error_past(2,1))) + (kvel(2,1)*(derivatives(15,i) - mea_xyz_vel(2,1))) + derivatives(18,i) - a_rd(2,1); % y
-    a_des(3,:) = (kpos(3,1)*error(3,1)) + (kdpos(3,1)*(error(3,1) - error_past(3,1))) + g - a_rd(3,1); % z, ellipse needa add the derivatives for z, a_ref is negative 
+    a_des(3,:) = (kpos(3,1)*error(3,1)) + (kdpos(3,1)*(error(3,1) - error_past(3,1))) + g - a_rd(3,1) - z_cmd_vel_acc; % z, ellipse needa add the derivatives for z, a_ref is negative 
     %% z (can be used to test, needs to activate hover flaps mode)
     a_des_z(3,:) = a_des(3,:); 
     error_past = error; 
@@ -491,9 +499,10 @@ while ishandle(H)
     %     end
     %     trigger = trigger + update_rate; % temporary holding
 
-    if ref_counter == sample_per_loop*2
-        ref_counter = ref_counter*1;
-    elseif ref_counter < sample_per_loop*2
+    if ref_counter == sample_per_loop
+        ref_counter = 1;
+        log_laps = log_laps + 1;
+    elseif ref_counter < sample_per_loop
         ref_counter = ref_counter + 1;
     end
         

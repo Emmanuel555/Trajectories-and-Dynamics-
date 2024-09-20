@@ -519,8 +519,8 @@ classdef test_ExpAuxiliaryFunctions
             mag(23,:) = t_final_snap(1,1:numsamples); % x
             mag(24,:) = t_final_snap(2,1:numsamples); % y
             mag(25,:) = t_final_snap(3,1:numsamples); % z
-            mag(26,1:(numsamples)-1) = diff_rad(1,:); % rad/s
-            mag(27,1:(numsamples)-1) = diff_deg(1,:); % deg/s
+            mag(26,1:(numsamples)-2) = diff_rad(1,:); % rad/s
+            mag(27,1:(numsamples)-2) = diff_deg(1,:); % deg/s
             %mag(28,1:(numsamples)-2) = diff_diff_rad(1,:); % rad/s/s
             %mag(29,1:(numsamples)-2) = diff_diff_deg(1,:); % deg/s/s
             %circle_xy(2,1:1130)
