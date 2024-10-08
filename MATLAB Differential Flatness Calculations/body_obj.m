@@ -21,7 +21,7 @@ classdef body_obj < handle
       body_rotation;
    end
    methods
-       function init(obj,name)
+      function init(obj,name)
         obj.bodyname=name;
       end
 
