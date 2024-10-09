@@ -9,7 +9,7 @@ hz = 60; % original value here was 300; % 100 hz for optitrack, matlab rate is a
 rate= 1/hz; % in 1/Hz, how fast the graph updates in terms of period (time)
 bodyname=["gp"]; % multiple bodies allowed
 %data_arr=["Mtime","Otime","name","x","y","z","qx","qy","qz","qw","euy","eup","eur","eury","eurp","eurr","vx","vy", "vz","pitch_norm"]; % Array to store to excel
-data_arr=["Mtime","Otime","name","x","y","z","euy","eup","eur","vx","vy","vz","ax","ay","az","bod_ang_acc","thrust","no. of laps"]; % Array to store to excel
+data_arr=["Mtime","Otime","name","x","y","z","euy","eup","eur","vx","vy","vz","ax","ay","az","bod_ang_acc","thrust","no. of laps","ref_x","ref_y","ref_z","ref_vx","ref_vy","ref_vz"]; % Array to store to excel
 
 %% Create OptiTrack object
 obj = OptiTrack;
@@ -169,6 +169,13 @@ log_bod_acc = zeros(3,1);
 log_head = 0;
 log_motor_input = 0;
 log_laps = 0;
+ref_x = derivatives(11,1);
+ref_y = derivatives(12,1);
+ref_z = ideal_hgt;
+ref_vx = 0.0;
+ref_vy = 0.0;
+ref_vz = 0.0;
+
 
 p_array = [];
 t_array = [];
@@ -215,7 +222,7 @@ while ishandle(H)
                     old_timestamp = rb(k).TimeStamp; 
 %                     disp(rad2deg(variable.("gp").euler));
 %                   data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).quarternion(1) variable.(my_field).quarternion(2) variable.(my_field).quarternion(3) variable.(my_field).quarternion(4) variable.(my_field).euler(1) variable.(my_field).euler(2) variable.(my_field).euler(3) variable.(my_field).euler_rate(1) variable.(my_field).euler_rate(2) variable.(my_field).euler_rate(3) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3)]];
-                    data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(3) variable.(my_field).euler(2) variable.(my_field).euler(1) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) variable.(my_field).acc(1) variable.(my_field).acc(2) variable.(my_field).acc(3) log_bod_acc log_motor_input log_laps]];
+                    data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(3) variable.(my_field).euler(2) variable.(my_field).euler(1) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) variable.(my_field).acc(1) variable.(my_field).acc(2) variable.(my_field).acc(3) log_bod_acc log_motor_input log_laps ref_x ref_y ref_z ref_vx ref_vy ref_vz]];
                     
                 end
             end
@@ -351,7 +358,7 @@ while ishandle(H)
     % a_fb_xy = abs((kpos*delta_pos) + (kvel*(delta_vel)));
 
     if z_enabled == "y"
-        desired_alt = derivatives(13,i);
+        desired_alt = derivatives(13,i) - opti_offset;
         z_cmd_vel_acc = (kvel(3,1)*(derivatives(16,i) - mea_xyz_vel(3,1))) + derivatives(19,i); 
     else
         z_cmd_vel_acc = 0;
@@ -366,6 +373,12 @@ while ishandle(H)
     a_des_z(3,:) = a_des(3,:); 
     error_past = error; 
     mea_xyz_pos_past = mea_xyz_pos;
+    ref_x = derivatives(11,i);
+    ref_y = derivatives(12,i);
+    ref_z = desired_alt + opti_offset;
+    ref_vx = derivatives(14,i);
+    ref_vy = derivatives(15,i);
+    ref_vz = derivatives(16,i);
 
     %% old code
     % a_fb_xy = abs((kpos*(derivatives(1,i) - mea_xy_pos_mag)) + (kvel*(derivatives(2,i) - mea_xy_vel_mag))); % xy_magnitude plane since yaw can be easily taken care of 
