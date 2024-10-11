@@ -187,9 +187,9 @@ motor_feedback = zeros(1,1);
 flap_feedback = zeros(1,1);
 
 % Moment of inertia (I) - ixx, iyy, izz
-Ixx = 171;
-Iyy = 171;
-Izz = 171;
+Ixx = 171; % 0.0005764953
+Iyy = 171; % 0.0005764953
+Izz = 171; % 0.0005975766
 I = [Ixx, 0, 0; 0, Iyy, 0; 0, 0, Izz]; % tentative values 
 
 while ishandle(H)
