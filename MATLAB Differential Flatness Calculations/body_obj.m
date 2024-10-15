@@ -27,10 +27,13 @@ classdef body_obj < handle
 
       function updatepose(obj,rb)
         obj.quarternion = [rb.Quaternion(1) rb.Quaternion(2) rb.Quaternion(3) rb.Quaternion(4)]; % w, x, y, z
+        %obj.position = [rb.Position(1)/1000 rb.Position(2)/1000 rb.Position(3)/1000];
         obj.position = [rb.Position(1)/1000 rb.Position(2)/1000 rb.Position(3)/1000];
         % eul_zyz = quat2eul(obj.quarternion,'ZYZ'); % zyz, yaw pitch roll
         eul_xyz = quat2eul(obj.quarternion,'XYZ'); %  xyz, roll pitch yaw for body |_, must initialise with this form in optitrack
-        eul = [eul_xyz(2),eul_xyz(1),eul_xyz(3)]; %  xyz, roll pitch yaw - switch to  _|  
+        % eul = [eul_xyz(2),eul_xyz(1),eul_xyz(3)]; %  xyz, roll pitch yaw - switch to  _| 
+        offset = pi/2;
+        eul = [-1*eul_xyz(1),eul_xyz(2),eul_xyz(3)+offset];
         % eul(3) = -eul(3);   % (3 = yaw, 2 = pitch, 1 = roll) for the disk 
         obj.euler = eul;
 
@@ -52,8 +55,10 @@ classdef body_obj < handle
         end
 
 %         obj.pitch_norm=((-rb.Position(2)*cos(obj.euler(1)))/sin(obj.euler(1)));
-        disp("yaw     pitch    roll");
-        disp([obj.euler(3) obj.euler(2) obj.euler(1)]);
+        %disp("yaw     pitch    roll");
+        %disp([obj.euler(3) obj.euler(2) obj.euler(1)]);
+        %fprintf('\t Pos [%f,%f,%f]\n', obj.position);
+        %fprintf('\t Euler angles [%f,%f,%f]\n', eul);
         %disp([eul_zyz(1) eul_zyz(2) eul_zyz(3)]);
         %disp([eul_xyz(1) eul_xyz(2) eul_xyz(3)]);
         %disp([obj.euler_rate(3) obj.euler_rate(2) obj.euler_rate(1)])

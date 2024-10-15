@@ -7,13 +7,14 @@ clc
 import body_obj.*
 hz = 60; % original value here was 300; % 100 hz for optitrack, matlab rate is at 60 
 rate= 1/hz; % in 1/Hz, how fast the graph updates in terms of period (time)
-bodyname=["gp"]; % multiple bodies allowed
+bodyname= "STSAR"; % multiple bodies allowed
 %data_arr=["Mtime","Otime","name","x","y","z","qx","qy","qz","qw","euy","eup","eur","eury","eurp","eurr","vx","vy", "vz","pitch_norm"]; % Array to store to excel
-data_arr=["Mtime","Otime","name","x","y","z","euy","eup","eur","vx","vy","vz","ax","ay","az","bod_ang_acc","thrust","no. of laps","ref_x","ref_y","ref_z","ref_vx","ref_vy","ref_vz"]; % Array to store to excel
+%data_arr=["Mtime","Otime","name","x","y","z","euy","eup","eur","vx","vy","vz","ax","ay","az","bod_ang_acc","thrust","no. of laps","ref_x","ref_y","ref_z","ref_vx","ref_vy","ref_vz"]; % Array to store to excel
+data_arr=["timestamp","x","y","z","eur","eup","euy","vx","vy","vz","ax","ay","az","thrust","no. of laps","ref_x","ref_y","ref_z","ref_vx","ref_vy","ref_vz"]; % Array to store to excel
 
 %% Create OptiTrack object
 obj = OptiTrack;
-Initialize(obj,'192.168.1.5','multicast'); % Dun touch ** IP of the optitrack com, Ensure broadcast frame id is on, loop interface is set to this ip and transmission type is set to multicast
+Initialize(obj,'192.168.65.4','multicast'); % Dun touch ** IP of the optitrack com, Ensure broadcast frame id is on, loop interface is set to this ip and transmission type is set to multicast
 
 up = udpport("IPV4");
 % up = udpport("datagram","OutputDatagramSize",3);
@@ -30,7 +31,7 @@ for i = 1:numel(rb)
     variable.(my_field).init(convertCharsToStrings(rb(i).Name));
 end
 
-computerip="192.168.1.184"; % ip of monocopter to be written to (this can change from time to time) ***
+computerip="192.168.65.227";% ip of monocopter to be written to (this can change from time to time) ***
 port=1234; % port of the computer to be written to
 %% Break loop if keypress to save to excel
 DlgH = figure;
@@ -40,7 +41,7 @@ H = uicontrol('Style', 'PushButton', ...
 drawnow
 
 
-exp = ExpAuxiliaryFunctions;
+exp = test_ExpAuxiliaryFunctions;
 % center for x and y (needa check again on optitrack)
 center_x = 2.85-0.5;
 center_y = 1.85;
@@ -104,12 +105,12 @@ mea_bod_pitch_deg = zeros(1,1); % must be in deg
 
 
 % gains
-kpos = [1500.0;1500.0;10];
+kpos = [1500.0;1500.0;15];
 kvel = [1300.0;1300.0;10];
 kdpos = [1300.0;1300.0;105];
 %kpos_z = 10;
 %kd_z = 105;
-kpa = [0.4;0.6]; % att p gain - angle 2 x 1
+kpa = [0.4;0.6;0]; % att p gain - angle 2 x 1
 kpr = [30;30;0]; % bodyrate p gain - jerk 3 x 1
 kpang = [30;30;0]; % bodyangacc p gain - 3 x 1
 kdang = [30;30;0]; % bodyangacc d gain - 3 x 1
@@ -120,7 +121,7 @@ ppc = 0.10; % centrifugal gain, alternatively, ppc = 1 - ppq
 dpp = 30;
 
 % motor gains
-kt = 100;
+kt = 20;
 
 % init a_des
 a_des = zeros(3,1);
@@ -187,9 +188,9 @@ motor_feedback = zeros(1,1);
 flap_feedback = zeros(1,1);
 
 % Moment of inertia (I) - ixx, iyy, izz
-Ixx = 171; % 0.0005764953
-Iyy = 171; % 0.0005764953
-Izz = 171; % 0.0005975766
+Ixx = 0.0005764953; % 0.0005764953
+Iyy = 0.0005764953; % 0.0005764953
+Izz = 0.0005975766; % 0.0005975766
 I = [Ixx, 0, 0; 0, Iyy, 0; 0, 0, Izz]; % tentative values 
 
 while ishandle(H)
@@ -222,8 +223,9 @@ while ishandle(H)
                     old_timestamp = rb(k).TimeStamp; 
 %                     disp(rad2deg(variable.("gp").euler));
 %                   data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).quarternion(1) variable.(my_field).quarternion(2) variable.(my_field).quarternion(3) variable.(my_field).quarternion(4) variable.(my_field).euler(1) variable.(my_field).euler(2) variable.(my_field).euler(3) variable.(my_field).euler_rate(1) variable.(my_field).euler_rate(2) variable.(my_field).euler_rate(3) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3)]];
-                    data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(3) variable.(my_field).euler(2) variable.(my_field).euler(1) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) variable.(my_field).acc(1) variable.(my_field).acc(2) variable.(my_field).acc(3) log_bod_acc log_motor_input log_laps ref_x ref_y ref_z ref_vx ref_vy ref_vz]];
-                    
+                    %data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(3) variable.(my_field).euler(2) variable.(my_field).euler(1) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) variable.(my_field).acceleration(1) variable.(my_field).acceleration(2) variable.(my_field).acceleration(3) log_bod_acc log_motor_input log_laps ref_x ref_y ref_z ref_vx ref_vy ref_vz]];
+                    data_arr=[data_arr; [rb(k).TimeStamp variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(1) variable.(my_field).euler(2) variable.(my_field).euler(3) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) variable.(my_field).acceleration(1) variable.(my_field).acceleration(2) variable.(my_field).acceleration(3) log_motor_input log_laps ref_x ref_y ref_z ref_vx ref_vy ref_vz]];
+
                 end
             end
         end
@@ -248,12 +250,12 @@ while ishandle(H)
     drawnow
     %hold off
     
-    mea_pos = transpose(variable.gp.position); % extract position measurements in real time from opti track 
-    mea_vel = transpose(variable.gp.velocity); % extract velocity measurements in real time from opti track
-    mea_acc = transpose(variable.gp.acceleration); % extract acceleration measurements in real time from opti track ( need to do ***)
-    inertia_frame_angles = transpose(variable.gp.euler); % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
-    inertia_frame_angular_rate = transpose(variable.gp.euler_rate); % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
-    inertia_frame_angular_rate_rate = transpose(variable.gp.euler_rate_rate); % % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
+    mea_pos = transpose(variable.STSAR.position); % extract position measurements in real time from opti track 
+    mea_vel = transpose(variable.STSAR.velocity); % extract velocity measurements in real time from opti track
+    mea_acc = transpose(variable.STSAR.acceleration); % extract acceleration measurements in real time from opti track ( need to do ***)
+    inertia_frame_angles = transpose(variable.STSAR.euler); % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
+    inertia_frame_angular_rate = transpose(variable.STSAR.euler_rate); % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
+    inertia_frame_angular_rate_rate = transpose(variable.STSAR.euler_rate_rate); % % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
     
     %% Body
     phi = inertia_frame_angles(1,1); % _| roll - from inertia eul_xyz(2) about y, body pitch
@@ -375,7 +377,7 @@ while ishandle(H)
     mea_xyz_pos_past = mea_xyz_pos;
     ref_x = derivatives(11,i);
     ref_y = derivatives(12,i);
-    ref_z = desired_alt + opti_offset;
+    ref_z = desired_alt;
     ref_vx = derivatives(14,i);
     ref_vy = derivatives(15,i);
     ref_vz = derivatives(16,i);
@@ -404,6 +406,8 @@ while ishandle(H)
     % log_head = true_heading;
 
     %% Collective thrust (can be used to test)
+    zd = a_des / norm(a_des); % consists of all 3 axis, this was segregated due to collective and cyclic thrust decoupling  
+    zd_z = a_des_z / norm(a_des_z); % 3 x 1 = z_desired, if empty it would be 0 0 1 
     % cmd_z = dot(transpose(zd),transpose(a_des)); %% command sent to motor, need to include filter to make sure negative cmds dun go thru
     cmd_z = dot(transpose(zd_z),transpose(a_des_z)); %% command sent to motor, need to include filter to make sure negative cmds dun go thru
     rho = 1.225;
@@ -419,19 +423,18 @@ while ishandle(H)
     
     % (INDI Component for Collective Thrust) %%% continue from here
     % omega_z = omega_z - abs(body_frame_angular_rate(3,1)); % this is for body rotation which we aint doing this time round
-    omega_z = omega_z/kt; % this is for motor input where kt*omega_z as in the paper
+    omega_z = omega_z*kt; % this is for motor input where kt*omega_z as in the paper
 
     % omega_z = 0.05*omega_z;
-    if omega_z > 0.7
-        omega_z = 0.7;
-    end
+    % if omega_z > 0.7
+    %     omega_z = 0.7;
+    % end
+
     log_motor_input = omega_z;
     %fprintf('Desired (%d) vs Actual (%d)', counter_des, counter_actl);
     fprintf('Omega z is : %d', omega_z);
 
     %% 1. Attitude controller
-    zd = a_des / norm(a_des); % consists of all 3 axis, this was segregated due to collective and cyclic thrust decoupling  
-    zd_z = a_des_z / norm(a_des_z); % 3 x 1 = z_desired, if empty it would be 0 0 1 
     
     % Bodyrates (for collective thrust test, this entire section can be disabled)
     qz = eul2quat(mea_euler); % default seq is q = [w x y z]
@@ -446,9 +449,9 @@ while ishandle(H)
     % can always break here to make sure shit is running correctly
     
     if error_quat(:,1) < 0
-        body_rates = -2 * prp.* error_quat(:,2:3); % 2 and 3 refers to omega x and y
+        body_rates = -2 * error_quat(:,2:3); % 2 and 3 refers to omega x and y
     else
-        body_rates = 2 * prp.* error_quat(:,2:3);
+        body_rates = 2 * error_quat(:,2:3);
     end
 
 %     disp("body_rates");
@@ -522,10 +525,17 @@ while ishandle(H)
     i = i + 1; % 50 or 30 is the number to update
     c = c + 1;
     
-    input = [0,final_flap_input,omega_z,mea_rotation]; % heading, flap, motor, yaw
-    fprintf('Input [%f,%f,%f]\n', input);
-    disp("counter");
-    disp(i);
+    % Mixing
+    final_flap_input = 1*final_flap_input;
+    % omega_z = 20*omega_z;
+
+    %input = [0,final_flap_input,omega_z,mea_rotation]; % heading, flap, motor, yaw
+    input = [round(mea_rotation,2),round(0,2),round(0,2),round(omega_z,2)]; % heading, flap, motor, yaw
+    fprintf('\t Input [%f,%f,%f,%f]\n', input);
+    fprintf('\t Counter is %f\n', i);
+    fprintf('\t Pos [%f,%f,%f]\n', transpose(mea_pos));
+    fprintf('\t Euler angles [%f,%f,%f]\n', transpose(inertia_frame_angles));
+    fprintf('\t cl and cd %f,%f\n', cl, cd);
     write(up,input,"double", computerip,port);
 
 
@@ -533,6 +543,6 @@ while ishandle(H)
 end
 
 %% Write to excel
-filename = 'C:\Users\area_\OneDrive\Desktop\testdata.xlsx';
+filename = 'C:\Users\WJ-AIR\OneDrive - Singapore University of Technology and Design\Emma RAL25\ral_sam_data\Sam001.xlsx';
 disp("FINISH")
 writematrix(data_arr,filename,'Sheet',1,'Range','B2'); % ("Array",filename,~,sheetname,~,range of cells to paste in 'E1:I5')
