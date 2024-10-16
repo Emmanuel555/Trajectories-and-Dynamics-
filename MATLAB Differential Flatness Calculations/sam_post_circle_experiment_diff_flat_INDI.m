@@ -50,10 +50,10 @@ mid_x = 2.0;
 mid_y = 2.0;
 radius = 0.5;
 speed = 1.5;
-monocopter_rotation = "c";
+monocopter_rotation = "c"; % clockwise
 z_enabled = "n"; 
 derivatives = exp.circle_setpoints_anti_cw(speed,mid_x,mid_y,radius,hz,monocopter_rotation); % circle anti_cw setpoints, radius 0.5, speed 0.5
-% derivatives = exp.circle_setpoints_cw(1,-2,2,1); % circle cw setpoints
+% derivatives = exp.trochoid(1,monocopter_rotation);
 
 % vel = load("invert_vel.mat");
 % acc = load("invert_acc.mat");
@@ -423,7 +423,9 @@ while ishandle(H)
     
     % (INDI Component for Collective Thrust) %%% continue from here
     % omega_z = omega_z - abs(body_frame_angular_rate(3,1)); % this is for body rotation which we aint doing this time round
-    omega_z = omega_z*kt; % this is for motor input where kt*omega_z as in the paper
+    
+    % Mixing
+    omega_z = kt*omega_z; % this is for motor input where kt*omega_z as in the paper
 
     % omega_z = 0.05*omega_z;
     % if omega_z > 0.7
@@ -503,7 +505,8 @@ while ishandle(H)
     
     pitch_input = exp.flap_output(mea_rotation,quadrant_pitch,desired_pitch_heading,-1*cmd_bod_acc(2,1));% conservation of angular momentum thats why need -1     
     roll_input = exp.flap_output(mea_rotation,quadrant_roll,desired_roll_heading,-1*cmd_bod_acc(1,1));% conservation of angular momentum thats why need -1  
-        
+    
+    % Mixing
     final_flap_input = deg2rad((pitch_input(:,1) + roll_input(:,1)) * 25); % tried braking and heading compensation, not very good
   
     %% trigger
@@ -525,17 +528,13 @@ while ishandle(H)
     i = i + 1; % 50 or 30 is the number to update
     c = c + 1;
     
-    % Mixing
-    final_flap_input = 1*final_flap_input;
-    % omega_z = 20*omega_z;
-
     %input = [0,final_flap_input,omega_z,mea_rotation]; % heading, flap, motor, yaw
     input = [round(mea_rotation,2),round(0,2),round(0,2),round(omega_z,2)]; % heading, flap, motor, yaw
     fprintf('\t Input [%f,%f,%f,%f]\n', input);
     fprintf('\t Counter is %f\n', i);
     fprintf('\t Pos [%f,%f,%f]\n', transpose(mea_pos));
     fprintf('\t Euler angles [%f,%f,%f]\n', transpose(inertia_frame_angles));
-    fprintf('\t cl and cd %f,%f\n', cl, cd);
+    %fprintf('\t cl and cd %f,%f\n', cl, cd);
     write(up,input,"double", computerip,port);
 
 
