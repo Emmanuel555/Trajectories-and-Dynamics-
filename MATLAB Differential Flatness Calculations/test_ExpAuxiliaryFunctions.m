@@ -529,6 +529,33 @@ classdef test_ExpAuxiliaryFunctions
         end
 
 
+        function [mag] = point(obj)
+            % waypoints
+            sample_per_loop = 1;
+            mag(6,:) = 1; %direction
+            mag(7,1) = 1; %update rate
+            % mag(8,1:9) = x; 
+            mag(9,:) = 1; %direction
+            mag(10,1) = sample_per_loop;
+            mag(10,2) = (sample_per_loop*2); % number of points ran in this function
+            mag(11,:) = 2; % x
+            mag(12,:) = 2; % y
+            mag(13,:) = 1; % z
+            mag(14,:) = 0; % x
+            mag(15,:) = 0; % y
+            mag(16,:) = 0; % z
+            mag(17,:) = 0; % x
+            mag(18,:) = 0; % y
+            mag(19,:) = 0; % z
+            mag(20,:) = 0; % x
+            mag(21,:) = 0; % y
+            mag(22,:) = 0; % z
+            mag(23,:) = 0; % x
+            mag(24,:) = 0; % y
+            mag(25,:) = 0; % z
+            
+        end
+
 
         function [mag] = circle_setpoints_anti_cw(obj,speed,x_rad,y_rad,r,hz,rotation)    
             %CIRCLE

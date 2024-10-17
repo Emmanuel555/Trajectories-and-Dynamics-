@@ -5,7 +5,7 @@ clc
 
 %% Variables
 import body_obj.*
-hz = 60; % original value here was 300; % 100 hz for optitrack, matlab rate is at 60 
+hz = 30; % original value here was 300; % 100 hz for optitrack, matlab rate is at 60 
 rate= 1/hz; % in 1/Hz, how fast the graph updates in terms of period (time)
 bodyname= "STSAR"; % multiple bodies allowed
 %data_arr=["Mtime","Otime","name","x","y","z","qx","qy","qz","qw","euy","eup","eur","eury","eurp","eurr","vx","vy", "vz","pitch_norm"]; % Array to store to excel
@@ -49,10 +49,11 @@ center_y = 1.85;
 mid_x = 2.0;
 mid_y = 2.0;
 radius = 0.5;
-speed = 1.5;
+speed = 0.1;
 monocopter_rotation = "c"; % clockwise
 z_enabled = "n"; 
-derivatives = exp.circle_setpoints_anti_cw(speed,mid_x,mid_y,radius,hz,monocopter_rotation); % circle anti_cw setpoints, radius 0.5, speed 0.5
+% derivatives = exp.circle_setpoints_anti_cw(speed,mid_x,mid_y,radius,hz,monocopter_rotation); % circle anti_cw setpoints, radius 0.5, speed 0.5
+derivatives = exp.point();
 % derivatives = exp.trochoid(1,monocopter_rotation);
 
 % vel = load("invert_vel.mat");
@@ -105,9 +106,9 @@ mea_bod_pitch_deg = zeros(1,1); % must be in deg
 
 
 % gains
-kpos = [1500.0;1500.0;15];
-kvel = [1300.0;1300.0;10];
-kdpos = [1300.0;1300.0;105];
+kpos = [0.2;0.2;15];
+kvel = [12.0;12.0;10];
+kdpos = [2.0;2.0;105];
 %kpos_z = 10;
 %kd_z = 105;
 kpa = [0.4;0.6;0]; % att p gain - angle 2 x 1
@@ -121,7 +122,7 @@ ppc = 0.10; % centrifugal gain, alternatively, ppc = 1 - ppq
 dpp = 30;
 
 % motor gains
-kt = 20;
+kt = -200;
 
 % init a_des
 a_des = zeros(3,1);
@@ -217,7 +218,7 @@ while ishandle(H)
 %                     fprintf('\t Quaternion [%f,%f,%f,%f]\n',rb(i).Quaternion);
                     my_field = strcat(convertCharsToStrings(rb(k).Name));
                     variable.(my_field).updatepose(rb(k));
-                    disp("timestamp");
+                    disp("Frequency");
                     %disp(rad2deg(variable.(my_field).euler));
                     disp(1/(rb(k).TimeStamp - old_timestamp));
                     old_timestamp = rb(k).TimeStamp; 
@@ -327,7 +328,7 @@ while ishandle(H)
     mea_xyz_acc(3,1) = mea_acc(3,:);
     
     %euler angles of the disk 
-    mea_euler = [0,mea_angles(2,1),mea_angles(1,1)]; % default seq is about ZYX
+    mea_euler = [0,mea_angles(1,1),mea_angles(2,1)]; % default seq is about ZYX
     
 %%  reset
  
@@ -459,8 +460,8 @@ while ishandle(H)
 %     disp("body_rates");
 %     disp(body_rates);
 
-    cmd_att = kpa.*([body_rates(1,1);body_rates(1,2);0]/3); % rp - wy, wx for moving along x y, want to compare purely against this need to switch to /1
-
+    %cmd_att = kpa.*([body_rates(1,1);body_rates(1,2);0]/3); % rp - wy, wx for moving along x y, want to compare purely against this need to switch to /1
+    cmd_att = kpa.*([body_rates(1,1);body_rates(1,2);0]);
     %% 2. Diff Flat Feedforward component (for jerk) 20 21 22 is jerk xyz 
 
     % Jerk
@@ -473,8 +474,8 @@ while ishandle(H)
     ff_snap = [derivatives(23,i)/(-1*cmd_z);derivatives(24,i)/cmd_z;0]/3; % rp - wy, wx for moving along x y 
     
     %% 4. Angular acc combine all 3
-    cmd_bod_acc = (cmd_att + cmd_bod_rate + ff_snap); % reverted (now bod rate ref is separate from the gain) gain for cyclic, multiply this to azimuth sin or cos from quadrant, the other value is the desired heading
-    %cmd_bod_acc = (cmd_att);
+    %cmd_bod_acc = (cmd_att + cmd_bod_rate + ff_snap); % reverted (now bod rate ref is separate from the gain) gain for cyclic, multiply this to azimuth sin or cos from quadrant, the other value is the desired heading
+    cmd_bod_acc = cmd_att;
 
     % (INDI Component for body ang acc) - needa include j = moment of inertia
     error_ang = cmd_bod_acc - mea_angular_rate_rate;
@@ -529,12 +530,23 @@ while ishandle(H)
     c = c + 1;
     
     %input = [0,final_flap_input,omega_z,mea_rotation]; % heading, flap, motor, yaw
-    input = [round(mea_rotation,2),round(0,2),round(0,2),round(omega_z,2)]; % heading, flap, motor, yaw
+    figure
+    plot(ref_x, ref_y, "red",'LineWidth',2);
+    hold on
+    plot(mea_xyz_pos(1,1), mea_xyz_pos(2,1), "blue",'LineWidth',2);
+    hold off
+    xlabel('X-Pose')
+    ylabel('Y-Pose')
+    axis equal
+    title('Live plotting')
+    legend('Ref','Actual')
+    input = [round(mea_rotation,2),round(0,2),round(0,2),final_flap_input + abs(round(omega_z,2))]; % heading, flap, motor, yaw
     fprintf('\t Input [%f,%f,%f,%f]\n', input);
     fprintf('\t Counter is %f\n', i);
     fprintf('\t Pos [%f,%f,%f]\n', transpose(mea_pos));
+    fprintf('\t Ref Pos [%f,%f,%f]\n', ref_x,ref_y,ref_z);
     fprintf('\t Euler angles [%f,%f,%f]\n', transpose(inertia_frame_angles));
-    %fprintf('\t cl and cd %f,%f\n', cl, cd);
+    fprintf('\t cl and cd %f,%f\n', cl, cd);
     write(up,input,"double", computerip,port);
 
 
@@ -542,6 +554,6 @@ while ishandle(H)
 end
 
 %% Write to excel
-filename = 'C:\Users\WJ-AIR\OneDrive - Singapore University of Technology and Design\Emma RAL25\ral_sam_data\Sam001.xlsx';
+filename = 'C:\Users\WJ-AIR\OneDrive - Singapore University of Technology and Design\Emma RAL25\ral_sam_data\Sam026_30_0p1circle.xlsx';
 disp("FINISH")
 writematrix(data_arr,filename,'Sheet',1,'Range','B2'); % ("Array",filename,~,sheetname,~,range of cells to paste in 'E1:I5')
