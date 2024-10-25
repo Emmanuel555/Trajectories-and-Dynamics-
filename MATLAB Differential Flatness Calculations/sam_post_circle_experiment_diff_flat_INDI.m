@@ -10,7 +10,8 @@ rate= 1/hz; % in 1/Hz, how fast the graph updates in terms of period (time)
 bodyname= "STSAR"; % multiple bodies allowed
 %data_arr=["Mtime","Otime","name","x","y","z","qx","qy","qz","qw","euy","eup","eur","eury","eurp","eurr","vx","vy", "vz","pitch_norm"]; % Array to store to excel
 %data_arr=["Mtime","Otime","name","x","y","z","euy","eup","eur","vx","vy","vz","ax","ay","az","bod_ang_acc","thrust","no. of laps","ref_x","ref_y","ref_z","ref_vx","ref_vy","ref_vz"]; % Array to store to excel
-data_arr=["timestamp","x","y","z","eur","eup","euy","vx","vy","vz","ax","ay","az","thrust","no. of laps","ref_x","ref_y","ref_z","ref_vx","ref_vy","ref_vz"]; % Array to store to excel
+%data_arr=["timestamp","x","y","z","eur","eup","euy","vx","vy","vz","ax","ay","az","thrust","no. of laps","ref_x","ref_y","ref_z","ref_vx","ref_vy","ref_vz"]; % Array to store to excel
+data_arr=["timestamp","x","y","z","eur","eup","euy","vx","vy","vz","ax","ay","az","thrust","no. of laps","ref_x","ref_y","ref_z","input_a_roll","input_b_pitch"]; % Array to store to excel
 
 %% Create OptiTrack object
 obj = OptiTrack;
@@ -106,20 +107,25 @@ mea_bod_pitch_deg = zeros(1,1); % must be in deg
 
 
 % gains
-kpos = [0.075;0.075;120];
+kpos = [1;1;120];
 kvel = [0.1;0.1;10];
-kdpos = [12;12;210];
+kdpos = [0.1;0.1;210];
 %kpos_z = 10;
 %kd_z = 105;
+
+% attitude
 kpa = [0.1;0.1;0]; % att p gain - angle 2 x 1 0.25
+
+% bod rates
 kpr = [0.15;0.15;0]; % bodyrate p gain - jerk 3 x 1
-kpang = [0.1;0.1;0]; % bodyangacc p gain - 3 x 1
-kdang = [0.005;0.005;0]; % bodyangacc d gain - 3 x 1
+
+% INDI part locked in 
+kpang = [1.0;1.0;0]; % bodyangacc p gain - 3 x 1
+kdang = [0.0;0.0;0]; % bodyangacc d gain - 3 x 1
 kiang = [30;30;0]; % bodyangacc i gain - 3 x 1
-%kdr = [1;1;1]; % bodyrate d gain - jerk
-ppq = 0.40; % body acc gain
-ppc = 0.10; % centrifugal gain, alternatively, ppc = 1 - ppq
-dpp = 30;
+%ppq = 0.40; % body acc gain
+%ppc = 0.10; % centrifugal gain, alternatively, ppc = 1 - ppq
+%dpp = 30;
 
 % normalized motor gains 
 kt = -200;
@@ -194,6 +200,20 @@ Iyy = 0.0005764953; % 0.0005764953
 Izz = 0.0005975766; % 0.0005975766
 I = [Ixx, 0, 0; 0, Iyy, 0; 0, 0, Izz]; % tentative values 
 
+% Measurement filter
+filter_length = 5;
+filter_mat = zeros(3,filter_length);
+filter_pos = filter_mat; % extract position measurements in real time from opti track 
+filter_vel = filter_mat; % extract velocity measurements in real time from opti track
+filter_acc = filter_mat; % extract acceleration measurements in real time from opti track 
+filter_frame_angles = filter_mat; % world frame angles
+filter_frame_angular_rate = filter_mat; % world frame angular rate
+filter_frame_angular_rate_rate = filter_mat; % world frame angular rate rate
+f = 1;
+
+% Input
+input = zeros(1,4);
+
 while ishandle(H)
 %%
     % Get current rigid body information, this has to be recalled every time for new frame index
@@ -223,7 +243,7 @@ while ishandle(H)
 %                     disp(rad2deg(variable.("gp").euler));
 %                   data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).quarternion(1) variable.(my_field).quarternion(2) variable.(my_field).quarternion(3) variable.(my_field).quarternion(4) variable.(my_field).euler(1) variable.(my_field).euler(2) variable.(my_field).euler(3) variable.(my_field).euler_rate(1) variable.(my_field).euler_rate(2) variable.(my_field).euler_rate(3) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3)]];
                 %data_arr=[data_arr; [now rb(k).TimeStamp string(rb(k).Name) variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(3) variable.(my_field).euler(2) variable.(my_field).euler(1) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) variable.(my_field).acceleration(1) variable.(my_field).acceleration(2) variable.(my_field).acceleration(3) log_bod_acc log_motor_input log_laps ref_x ref_y ref_z ref_vx ref_vy ref_vz]];
-                data_arr=[data_arr; [rb(k).TimeStamp variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(1) variable.(my_field).euler(2) variable.(my_field).euler(3) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) variable.(my_field).acceleration(1) variable.(my_field).acceleration(2) variable.(my_field).acceleration(3) log_motor_input log_laps ref_x ref_y ref_z ref_vx ref_vy ref_vz]];
+                data_arr=[data_arr; [rb(k).TimeStamp variable.(my_field).position(1) variable.(my_field).position(2) variable.(my_field).position(3) variable.(my_field).euler(1) variable.(my_field).euler(2) variable.(my_field).euler(3) variable.(my_field).velocity(1) variable.(my_field).velocity(2) variable.(my_field).velocity(3) variable.(my_field).acceleration(1) variable.(my_field).acceleration(2) variable.(my_field).acceleration(3) log_motor_input log_laps ref_x ref_y ref_z input(1,1) input(1,2)]];
 
             end
         end
@@ -236,10 +256,31 @@ while ishandle(H)
     mea_pos = transpose(variable.STSAR.position); % extract position measurements in real time from opti track 
     mea_vel = transpose(variable.STSAR.velocity); % extract velocity measurements in real time from opti track
     mea_acc = transpose(variable.STSAR.acceleration); % extract acceleration measurements in real time from opti track ( need to do ***)
-    inertia_frame_angles = transpose(variable.STSAR.euler); % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
-    inertia_frame_angular_rate = transpose(variable.STSAR.euler_rate); % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
-    inertia_frame_angular_rate_rate = transpose(variable.STSAR.euler_rate_rate); % % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
+
+    %inertia_frame_angles = transpose(variable.STSAR.euler); % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
+    % inertia_frame_angular_rate = transpose(variable.STSAR.euler_rate); % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
+    % inertia_frame_angular_rate_rate = transpose(variable.STSAR.euler_rate_rate); % % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
     
+    inertia_frame_angles = transpose(variable.STSAR.quat_euler); % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z]
+    inertia_frame_angular_rate = transpose(variable.STSAR.quat_euler_rate); % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
+    inertia_frame_angular_rate_rate = transpose(variable.STSAR.quat_euler_rate_rate); % % in body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
+
+
+    %% Measurements filter
+    filter_pos(:,f) = mea_pos;
+    filter_vel(:,f) = mea_vel;
+    filter_acc(:,f) = mea_acc;
+    filter_frame_angles(:,f)  = inertia_frame_angles;
+    filter_frame_angular_rate(:,f) = inertia_frame_angular_rate;
+    filter_frame_angular_rate_rate(:,f) = inertia_frame_angular_rate_rate; 
+
+    mea_pos = median(filter_pos,2);
+    mea_vel = median(filter_vel,2);
+    mea_acc = median(filter_acc,2);
+    inertia_frame_angles = median(filter_frame_angles,2);
+    inertia_frame_angular_rate = median(filter_frame_angular_rate,2);
+    inertia_frame_angular_rate_rate = median(filter_frame_angular_rate_rate,2);
+
     %% Body
     phi = inertia_frame_angles(1,1); % _| roll - from inertia eul_xyz(2) about y, body pitch
     theta = inertia_frame_angles(2,1); % _| pitch - from inertia eul_xyz(1) about x, body roll, body obj it shud be [2,1,3] inertia frame rpy [2,1,3] from euler [x,y,z] 
@@ -258,6 +299,10 @@ while ishandle(H)
     mea_rotation = inertia_frame_angles(3,1); % negative
     % J = W.'*I*W; % back portion of the INDI
 
+    % if using quat method from shane
+    mea_angles = inertia_frame_angles;
+    mea_angular_rate = body_frame_angular_rate; % disk roll rate, body roll
+    mea_angular_rate_rate = body_frame_angular_rate_rate;
     
     %% Disk & Gyro (in the event of we need to invert the craft upside down)
     % d_phi = pi + inertia_frame_angles(1,1); % roll - from inertia eul_xyz(2) about y, body pitch
@@ -273,36 +318,36 @@ while ishandle(H)
 
     %% Disk & Gyro
 
-    mea_angular_rate(3,1) = 0;    
-    % need to test w opti track coordinate system to see if it can output this results 
-    if abs(mea_rotation) > deg2rad(90) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-    %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-        mea_angles(1,1) = theta; % disk pitch, body roll, can still follow body convention cos its jus a negative of disk 
-        mea_angular_rate(1,1) = body_frame_angular_rate(2,1); % disk pitch rate, body roll
-        mea_angular_rate_rate(1,1) = body_frame_angular_rate_rate(2,1);
-        %mea_precession_angle(1,1) = mea_angular_rate_rate(2,1)/body_frame_angular_rate(3,1); % needa check if euler rate(3) is negative for our craft, lets hope it is since its spins cw, anti-cw is positive
-    elseif abs(mea_rotation) < deg2rad(90) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-    %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-        mea_angles(1,1) = -1*theta; % disk pitch, body roll, can still follow body convention cos its jus a negative of disk 
-        mea_angular_rate(1,1) = -1*body_frame_angular_rate(2,1); % disk pitch rate, body roll
-        mea_angular_rate_rate(1,1) = -1*body_frame_angular_rate_rate(2,1);
-        %mea_precession_angle(1,1) = mea_angular_rate_rate(2,1)/body_frame_angular_rate(3,1); % needa check if euler rate(3) is negative for our craft, lets hope it is since its spins cw, anti-cw is positive
-    end
-
-
-    if mea_rotation > deg2rad(0) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-    %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-        mea_angles(2,1) = -1*theta; % becomes disk pitch cos of phase shift, body roll
-        mea_angular_rate(2,1) = -1*body_frame_angular_rate(2,1); % disk pitch rate, body roll
-        mea_angular_rate_rate(2,1) = -1*body_frame_angular_rate_rate(2,1);
-        %mea_precession_angle(2,1) = mea_angular_rate_rate(1,1)/body_frame_angular_rate(3,1);
-    elseif mea_rotation < deg2rad(0) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-    %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
-        mea_angles(2,1) = theta; % becomes disk pitch cos of phase shift, body roll
-        mea_angular_rate(2,1) = body_frame_angular_rate(2,1); % disk pitch rate, body roll
-        mea_angular_rate_rate(2,1) = body_frame_angular_rate_rate(2,1);
-        %mea_precession_angle(2,1) = mea_angular_rate_rate(1,1)/body_frame_angular_rate(3,1);    
-    end
+    % mea_angular_rate(3,1) = 0;    
+    % % need to test w opti track coordinate system to see if it can output this results 
+    % if abs(mea_rotation) > deg2rad(90) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    % %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    %     mea_angles(1,1) = theta; % becomes disk roll cos of phase shift, body roll
+    %     mea_angular_rate(1,1) = body_frame_angular_rate(2,1); % disk roll rate, body roll
+    %     mea_angular_rate_rate(1,1) = body_frame_angular_rate_rate(2,1);
+    %     %mea_precession_angle(1,1) = mea_angular_rate_rate(2,1)/body_frame_angular_rate(3,1); % needa check if euler rate(3) is negative for our craft, lets hope it is since its spins cw, anti-cw is positive
+    % elseif abs(mea_rotation) < deg2rad(90) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    % %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    %     mea_angles(1,1) = -1*theta;  % becomes disk roll cos of phase shift, body roll
+    %     mea_angular_rate(1,1) = -1*body_frame_angular_rate(2,1); % disk roll rate, body roll
+    %     mea_angular_rate_rate(1,1) = -1*body_frame_angular_rate_rate(2,1);
+    %     %mea_precession_angle(1,1) = mea_angular_rate_rate(2,1)/body_frame_angular_rate(3,1); % needa check if euler rate(3) is negative for our craft, lets hope it is since its spins cw, anti-cw is positive
+    % end
+    % 
+    % 
+    % if mea_rotation > deg2rad(0) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    % %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    %     mea_angles(2,1) = theta; % becomes disk pitch cos of phase shift, body roll
+    %     mea_angular_rate(2,1) = body_frame_angular_rate(2,1); % disk pitch rate, body roll
+    %     mea_angular_rate_rate(2,1) = body_frame_angular_rate_rate(2,1);
+    %     %mea_precession_angle(2,1) = mea_angular_rate_rate(1,1)/body_frame_angular_rate(3,1);
+    % elseif mea_rotation < deg2rad(0) %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    % %if abs(variable.gp.euler(3)) < abs(derivatives(6,i) + deg2rad(10)) && variable.gp.euler(3) > -0.05  %% needa check if this will be logged at zero, if not mea_pitch will always be zero and we need a range
+    %     mea_angles(2,1) = -1*theta; % becomes disk pitch cos of phase shift, body roll
+    %     mea_angular_rate(2,1) = -1*body_frame_angular_rate(2,1); % disk pitch rate, body roll
+    %     mea_angular_rate_rate(2,1) = -1*body_frame_angular_rate_rate(2,1);
+    %     %mea_precession_angle(2,1) = mea_angular_rate_rate(1,1)/body_frame_angular_rate(3,1);    
+    % end
     
     %position assignment
     % mea_pos(1,:) is tangent to wall (X) and mea_pos(2,:) is along wall (Y) -- updated 
@@ -451,7 +496,7 @@ while ishandle(H)
     % can always break here to make sure shit is running correctly
     
     if error_quat(:,1) < 0
-        body_rates = -2 * error_quat(:,2:3); % 2 and 3 refers to omega x and y
+        body_rates = -2 * error_quat(:,2:3); % 2 and 3 refers to about x and y
     else
         body_rates = 2 * error_quat(:,2:3);
     end
@@ -462,7 +507,7 @@ while ishandle(H)
     %cmd_att = kpa.*([body_rates(1,1);body_rates(1,2);0]/3); % rp - wy, wx for moving along x y, want to compare purely against this need to switch to /1
     % cmd_att = kpa.*([body_rates(1,1);body_rates(1,2);0]); % solution is abt x and abt y 
     bod_test = exp.test_attitude(mea_euler,a_des); % solution is x and y 
-    cmd_att = kpa.*([body_rates(1,2);body_rates(1,1);0]); %rpy
+    cmd_att = kpa.*([body_rates(1,2);body_rates(1,1);0]); %rpy THIS IS CORRECT DUN CHANGE THIS FORMAT
 
     %% 2. Diff Flat Feedforward component (for jerk) 20 21 22 is jerk xyz 
 
@@ -482,9 +527,10 @@ while ishandle(H)
     % (INDI Component for body ang acc) - needa include j = moment of inertia
     error_ang = cmd_bod_acc - mea_angular_rate_rate;
     cmd_bod_acc = kpang.*error_ang + kdang.*(error_ang-error_ang_past);
-    % cmd_bod_acc = I*cmd_bod_acc; %% cont tmr...
+    %cmd_bod_acc = I*cmd_bod_acc; %% need to keep this to retain the small torque val
     log_bod_acc = cmd_bod_acc;
     error_ang_past = error_ang;
+
     % cmd_bodyrate = flap_feedback + j*cmd_bodyrate;
         
     %     bod_rate_cap = 0.117;
@@ -530,6 +576,12 @@ while ishandle(H)
         
     i = i + 1; % 50 or 30 is the number to update
     c = c + 1;
+
+    % measurement loop
+    f = f + 1;
+    if f > filter_length
+        f = 1;
+    end
     
     %input = [0,final_flap_input,omega_z,mea_rotation]; % heading, flap, motor, yaw
     
@@ -546,15 +598,15 @@ while ishandle(H)
     % input = [round(mea_rotation,2),round(0,2),round(0,2), abs(round(omega_z,2))]; % heading, flap, motor, yaw
     % input = [input_x, input_y, input_z, exp_daa];
 
-
-   
+    input_a =  cmd_bod_acc(1,:);
     %input_a = (a_des(1,:)/abs(a_des(1,:))) * abs(round(cmd_bod_acc(1,:),2)); % signs occasionally can be inconsistent, need to use the signs from error
-    input_a = a_des(1,:);
+    %input_a = a_des(1,:);
     if abs(input_a) > 1
         input_a = input_a/abs(input_a);
     end
+    input_b =  cmd_bod_acc(2,:);
     %input_b = (a_des(2,:)/abs(a_des(2,:))) * abs(round(cmd_bod_acc(2,:),2));
-    input_b = a_des(2,:);
+    %input_b = a_des(2,:);
     if abs(input_b) > 1
         input_b = input_b/abs(input_b);
     end
@@ -563,10 +615,9 @@ while ishandle(H)
     input_d = round(0,2);
 
     %input = [round(0,2),round(0,2),round(a_des_z(3,:)/-100,2),round(0,2)]; % to wj cyclic
-    input = [input_a,input_b,input_c,input_d]; % my cyclic
+    input = [round(input_a,2),round(input_b,2),round(input_c,2),round(input_d,2)]; % my cyclic
     %fprintf('\t flap pulse input, flap omega_z input %f,%f\n', final_flap_input, abs(round(omega_z,2)));
     fprintf('\t  input [%f,%f,%f,%f]\n',input);
-    %fprintf('\t bod_rates [%f,%f,%f]\n', transpose(cmd_att));
     %fprintf('\t bod_rates [%f,%f]\n', bod_test);
     fprintf('\t cmd bod acc [%f,%f,%f]\n', transpose(cmd_bod_acc));
     %fprintf('\t pitch input %f\n', pitch_input(:,1));
@@ -576,7 +627,7 @@ while ishandle(H)
     %fprintf('\t Error [%f,%f,%f]\n', transpose(error_past));
     %fprintf('\t Ref Pos [%f,%f,%f]\n', ref_x,ref_y,ref_z);
     %fprintf('\t Inertia Euler angles [%f,%f,%f]\n', transpose(inertia_frame_angles));
-    fprintf('\t Disk Euler angles [%f,%f,%f]\n', mea_angles(1,1), mea_angles(2,1), 0);
+    fprintf('\t Disk Euler angles [%f,%f,%f]\n', mea_angles(1,1), mea_angles(2,1), mea_rotation);
     
     %fprintf('\t cl and cd %f,%f\n', cl, cd);
     write(up,input,"double", computerip,port);
@@ -586,6 +637,6 @@ while ishandle(H)
 end
 
 %% Write to excel
-filename = 'C:\Users\WJ-AIR\OneDrive - Singapore University of Technology and Design\Emma RAL25\ral_sam_data\Sam0pos_hold.xlsx';
+filename = 'C:\Users\WJ-AIR\OneDrive - Singapore University of Technology and Design\Emma RAL25\ral_sam_data\Sam0pos_x+y+attholdraw.xlsx';
 disp("FINISH")
 writematrix(data_arr,filename,'Sheet',1,'Range','B2'); % ("Array",filename,~,sheetname,~,range of cells to paste in 'E1:I5')
