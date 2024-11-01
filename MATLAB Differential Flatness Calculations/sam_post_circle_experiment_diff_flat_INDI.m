@@ -486,7 +486,7 @@ while ishandle(H)
     % Bodyrates (for collective thrust test, this entire section can be disabled)
     qz = eul2quat(mea_euler); % default seq is q = [w x y z]
     disk_vector = quatrotate(qz,ez); % vector of 1 x 3
-    angle = acos((dot(disk_vector,transpose(zd))/(norm(disk_vector)*norm(zd)))); % will nvr catch up one
+    angle = acos((dot(disk_vector,transpose(zd))/(norm(disk_vector)*norm(zd)))); % will nvr catch up one, this is the formula for computing acos between 2 vectors
     n = cross(disk_vector,transpose(zd)) / norm(cross(disk_vector,transpose(zd)));
     B = quatrotate((quatinv(qz)),n);
 
